@@ -1,6 +1,8 @@
 ## Import data from syn5550404 aka MayoRNAseq
 ## GCH
 
+## we had decided 90 or above would be shifted to 90
+
 require(data.table)
 require(limma)
 require(biomaRt)
@@ -46,6 +48,7 @@ covs = data.frame(Sample_ID = c(CBEcovs$SampleID,TCXcovs$ID),
                   FACTOR_sex = c(CBEcovs$Sex,TCXcovs$Gender),
                   FACTOR_ethnicity = "unknown")
 
+covs$FACTOR_dx = factor(covs$FACTOR_dx)
 levels(covs$FACTOR_dx) = c("AD","CTL","Pathologic Aging","PSP")
 levels(covs$FACTOR_sex) = c("female","male")
 foo = as.character(covs$FACTOR_age)

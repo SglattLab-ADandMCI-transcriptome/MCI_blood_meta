@@ -16,8 +16,9 @@ data = getGEO(filename = paste0(rawlocation,"GSE15222/GSE15222_series_matrix.txt
 rawcovs = fread(paste0(rawlocation,"GSE15222/samples.covar"))
 
 Exprs = exprs(data)
-Exprs = normalizeQuantiles(Exprs)
-Exprs = log2(Exprs)
+## These data already normalized and log10.
+# Exprs = normalizeQuantiles(Exprs)
+# Exprs = log2(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 
 # Column 1    Group identifier
@@ -47,14 +48,16 @@ levels(tissues) = c("FCX", "PCX", "TCX", "CER")
 covs$FACTOR_tissue = tissues
 
 ## information from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2667989/
-## all noncaucasians excluded
+## all noncaucasians were excluded
 
 print(covs$FACTOR_dx)
-levels(covs$FACTOR_dx) = c("AD",rep("CTL",6))
+covs$FACTOR_dx[grep("Alzheimer",covs$FACTOR_dx)] = "AD"
+covs$FACTOR_dx[grep("normal",covs$FACTOR_dx)] = "CTL"
 print(covs$FACTOR_dx)
 print(covs$FACTOR_age)
 covs$FACTOR_age = sub("^.*,AGE_","",covs$FACTOR_age)
 covs$FACTOR_age = sub(",PMI.*","",covs$FACTOR_age)
+# Fixes age data by copying from another location
 for(i in 1:length(covs$FACTOR_age)){
   if(covs$FACTOR_age[i] == "tissue: Alzheimer's Disease frozen cortical tissue") {
     foo = data@phenoData@data$characteristics_ch1.2[i]
@@ -65,16 +68,18 @@ print(covs$FACTOR_age)
 print(covs$FACTOR_sex)
 covs$FACTOR_sex = sub("GENDER_","",covs$FACTOR_sex)
 covs$FACTOR_sex = sub(",AGE.*","",covs$FACTOR_sex)
+# Fixes gender data by copying from another location
 for(i in 1:length(covs$FACTOR_sex)){
   if(covs$FACTOR_sex[i] == "tissue: Alzheimer's Disease frozen cortical tissue") {
     foo = data@phenoData@data$characteristics_ch1.1[i]
-    levels(foo) = c("","female","male")
+    foo = tolower(substr(foo, 9,14))
     covs$FACTOR_sex[i] = as.character(foo)
   }
 }
 print(covs$FACTOR_sex)
 print(head(covs))
 
+# Change probe IDs to more familiar symbols
 IDs =  data@featureData@data$GB_ACC
 IDs = sub("\\..*","",IDs)
 ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
@@ -88,3 +93,4 @@ for(i in 1:length(IDs)){
 Exprs$PROBEID = genes
 
 rm(data)
+rm(foo)

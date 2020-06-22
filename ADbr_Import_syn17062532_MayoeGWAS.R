@@ -4,6 +4,8 @@
 ## quantile normalization and probe filtering using the lumi package of BioConductor.
 ## https://www.synapse.org/#!Synapse:syn17062532
 
+##do not forget we used ComBat
+
 ## For import of syn17062532 aka MayoeGWAS
 
 require(data.table)

@@ -1,6 +1,8 @@
 ## Import data from GSE29378 aka Miller13
 ## GCH
 
+# some subjects get removed for having no pheno data
+
 require(data.table)
 require(GEOquery)
 require(limma)
@@ -35,13 +37,15 @@ print(covs$FACTOR_sex)
 covs$FACTOR_sex = factor(covs$FACTOR_sex)
 levels(covs$FACTOR_sex) = c("female","male")
 print(covs$FACTOR_sex)
-print(head(covs))
 
 CA3 = grep("CA3",names(Exprs))
 Exprs = Exprs[,-CA3]
 CA3 = grep("CA3",covs$FACTOR_tissue)
 covs = covs[-CA3,]
+covs$FACTOR_tissue = "HIP"
+print(head(covs))
 
+# duplicates
 datanames = names(Exprs)
 datanames = sub("^.*?\\.","",datanames)
 datanames = sub("\\..*","",datanames)
@@ -50,6 +54,7 @@ rep2 = grepl("rep2",names(Exprs)[dup])
 out = dup[!rep2]
 Exprs = Exprs[,-out]
 
+## remove subjects without pheno data
 datanames = names(Exprs)
 datanames = sub("^.*?\\.","",datanames)
 datanames = sub("\\..*","",datanames)
