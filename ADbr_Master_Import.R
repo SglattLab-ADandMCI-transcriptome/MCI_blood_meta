@@ -26,6 +26,9 @@ require(GEOquery)
 require(biomaRt)
 require(edgeR)
 
+##TODO ethnicity cleanup/organization
+##TODO hispanic collapse vs white/black/etc
+
 ## Will have raw data on a flash drive eventually
 rawlocation = "D:/brain/data/"
 
@@ -53,6 +56,7 @@ for(script in scripts){
   covs = data.frame()
   source(script)  ## output in "Exprs" study name in "studyname" covariates in "covs"
   ##log2 or RMA, quantile normalized
+  ## PROBID as column 1, other column names as subjects
   
   # Boxplot of expression
   ## TODO consider ordering and color coding or labeling by tissue

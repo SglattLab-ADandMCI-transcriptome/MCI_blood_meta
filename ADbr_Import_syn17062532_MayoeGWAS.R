@@ -15,7 +15,7 @@ if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master im
 
 studyname = "MayoeGWAS"
 
-## TODO take out subjects who are in the pilot RNAseq study? no
+## We decided not to try to take out subjects who are in the _pilot_ RNAseq study
 
 CBEdata = fread(paste0(rawlocation,"syn17062532/MayoEGWAS_arrayExpression_CBE.csv"), data.table=F)
 TCXdata = fread(paste0(rawlocation,"syn17062532/MayoEGWAS_arrayExpression_TCX.csv"), data.table=F)

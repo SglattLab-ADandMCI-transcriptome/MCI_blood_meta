@@ -27,7 +27,8 @@ dupav <- function(x) {
   foo = 0
   names = x$PROBEID
   ln = length(unique(names))
-  cat("\nRemoving duplicates.  Total names:", length(unique(names)), " Total lines:",length(names),"\n")
+  cat("\nRemoving duplicates.  Total gene names:", length(unique(names)),
+      " Total lines:",length(names),"\n")
   for(name in unique(names)) {
     l = which(names==name)
     if (length(l) > 1) {
@@ -82,4 +83,4 @@ for(i in 1:length(covfiles)){
 }
 writethis = ldply(alldata)
 
-fwrite(writethis,paste0(covsfolder,"ADblood",cmString))
+fwrite(writethis,paste0(covsfolder,"ADbr",cmString))
