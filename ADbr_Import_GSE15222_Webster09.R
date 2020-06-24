@@ -16,9 +16,11 @@ data = getGEO(filename = paste0(rawlocation,"GSE15222/GSE15222_series_matrix.txt
 rawcovs = fread(paste0(rawlocation,"GSE15222/samples.covar"))
 
 Exprs = exprs(data)
+## TODO i'm still not sure about this guy.
 ## These data already normalized and log10.
 # Exprs = normalizeQuantiles(Exprs)
 # Exprs = log2(Exprs)
+# Exprs = Exprs/log(2)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 
 # Column 1    Group identifier
