@@ -22,9 +22,14 @@ all(genes == data2$gene_id)
 data1 = data1[,-c(1,2)]
 data2 = data2[,-c(1,2)]
 
+<<<<<<< HEAD
 ## add 1 so log doesn't produce -inf
 data1 = log2(data1+1)
 data2 = log2(data2+1)
+=======
+data1 = log2(data1)
+data2 = log2(data2)
+>>>>>>> 8cb28ab14e07adfbf0afd21da16dd27939d7160b
 
 Exprs = data.frame(PROBEID = genes,data1,data2)
 
