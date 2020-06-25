@@ -83,4 +83,4 @@ for(i in 1:length(covfiles)){
 }
 writethis = ldply(alldata)
 
-fwrite(writethis,paste0(covsfolder,"ADbr",cmString))
+fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))

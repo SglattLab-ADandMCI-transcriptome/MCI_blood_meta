@@ -46,7 +46,7 @@ genes = genes[!duplicated(genes$SYMBOL), ]
 
 ### Begin updating tables
 cat("\nReading file, scaling, separating tissues, and updating gene symbols.\n")
-rawall = fread("normalized_data/ADblood_merged.txt", header = T, stringsAsFactors = F, data.table = F)
+rawall = fread("normalized_data/ADMCI_merged.txt", header = T, stringsAsFactors = F, data.table = F)
 
 ## ethnicities cleanup
 foo = rawall$FACTOR_ethnicity
@@ -54,14 +54,18 @@ foo[foo == "Caucasian"] = "white"
 foo[foo == "caucasian"] = "white"
 foo[foo == "Japanese"] = "asian"
 rawall$FACTOR_ethnicity = factor(foo)
+print(table(rawall$FACTOR_ethnicity))
 
 ## sex cleanup
 foo = rawall$FACTOR_sex
 foo[grep("NA",foo)] = NA
 f = grep("female",foo)
 foo[grep("male",foo)] = "male"
+foo[grep("M",foo)] = "male"
+foo[grep("F",foo)] = "female"
 foo[f] = "female"
 rawall$FACTOR_sex = factor(foo)
+print(table(rawall$FACTOR_sex))
 
 ## tissue cleanup
 foo = rawall$FACTOR_tissue
@@ -71,8 +75,10 @@ foo[foo == "PFC"] = "frontal_cortex"
 foo[foo == "FCX"] = "frontal_cortex"
 foo[foo == "CR"] = "cerebellum"
 foo[foo == "CBE"] = "cerebellum"
+foo[foo == "CER"] = "cerebellum"
 foo[foo == "TCX"] = "temporal_cortex"
 rawall$FACTOR_tissue = factor(foo)
+print(table(rawall$FACTOR_tissue))
 
 names(rawall)[which(names(rawall) == "Sample_ID")] = "FACTOR_sampleID"
 for(tissue in tissues){
@@ -112,7 +118,6 @@ for(tissue in tissues){
   fwrite(datAll, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
   # datAll = fread("./data_for_analysis/GeneExpression_allstudies.txt")
   
-  ##########TODO bring sex/eths cleanup to here
   ### Bring in sample factors.
   cat("\nBringing in sample factors.")
   sf_list = list()
@@ -164,6 +169,7 @@ for(tissue in tissues){
   # PCA analysis
   cat("\nPerforming PCA analysis.\n")
   pca = prcomp(geneExpr)
+  ######### TODO something is happening here due to broken names maybe? a big pile of Infs is around
   
   # calculate variance explained by PCs
   sdev=(pca$sdev^2)/sum(pca$sdev^2)*100

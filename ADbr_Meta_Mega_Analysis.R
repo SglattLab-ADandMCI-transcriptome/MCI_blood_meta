@@ -1,22 +1,33 @@
 setwd("~/PsychGENe/brain/")
+analysislabel = "MCI"
+caselabel = "MCI"
+controllabel = "CTL"
 
-## meta analysis for brain data
+## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
+
+## TODO refactor some script names and outputs .. "ADMCI" to the groups being compared?
+## or just "analysislabel" variable here at the top
+## and case and control variables
+
+## TODO figure out something other than tidy.matrix >:(
 
 # load these packages (install if needed)
 require(plyr)
 require(ggplot2)
+require(ggrepel)
 require(data.table)
 library(limma)
 require(BRETIGEA)
-# require(dtangle)
-# require(dtangle.data)
-## https://umich.app.box.com/v/dtangledatapkg
 require(AnnotationDbi)
 require(sva)
+require(lmerTest)
 require(hgu133a.db)
+require(TxDb.Hsapiens.UCSC.hg38.knownGene)
+require(Homo.sapiens)
 require(metafor)
 
+datafolder = "./data_for_analysis/"
 metafolder = "./meta_analysis"
 megafolder = "./mega_analysis"
 forestfolder = "./forestplots"
@@ -29,9 +40,9 @@ if(!dir.exists(forestfolder)){
   dir.create(forestfolder)
 }
 
-datfiles = list.files("./data_for_analysis/","_GeneExpression_allstudies.txt")
-covfiles = list.files("./data_for_analysis/","_SampleFactors_allstudies.txt")
-scalefiles = list.files("./data_for_analysis/","_ScaledWithFactors_OutliersRemoved_allstudies.txt")
+datfiles = list.files(datafolder,"_GeneExpression_allstudies.txt")
+covfiles = list.files(datafolder,"_SampleFactors_allstudies.txt")
+scalefiles = list.files(datafolder,"_ScaledWithFactors_OutliersRemoved_allstudies.txt")
 
 dattis = sub("_GeneExpression_allstudies.txt","",datfiles)
 covtis = sub("_SampleFactors_allstudies.txt","",covfiles)
@@ -125,94 +136,6 @@ for(tissue in tissues){
     cat("\n   Kept", Nca,"cases and",Nco,"controls")
     ##TODO do i need subject ids in here somewhere
     
-    { # deconvolution SECTION
-      ## TODO fix this for brainz instead of leukocytes lol
-      # estimate leukocyte abundance
-      message("\nEstimating cell types with deconvolution...")
-      ##TODO evaulate if this is producing sensible/correct results
-      
-      exprs = as.data.frame(y) # extract normalized gene expression intensities for subjects
-  
-      # ##LM22
-      # foo = which(names(exprs) %in% colnames(dtangle.data::newman_pbmc$data$log))
-      # exprs = exprs[,foo]
-      # foo = which(colnames(dtangle.data::newman_pbmc$data$log) %in% names(exprs))
-      # ps = dtangle.data::newman_pbmc$annotation$pure_samples
-      # refs = dtangle.data::newman_pbmc$data$log[,foo]
-      # foo = sapply(strsplit(names(ps)," "),"[",1)
-  
-      # ## GSE28492
-      # refs = fread("./references/brain_deconvolution/deconvolutionSamples.txt", data.table=F)
-      # rownames(refs) = refs$V1
-      # refs = refs[,-1]
-      # foo = which(colSums(is.na(refs)) > 0)
-      # refs = refs[,-foo]
-      # foo = which(names(exprs) %in% colnames(refs))
-      # exprs = exprs[,foo]
-      # foo = numeric()
-      # for(asdf in 1:length(names(exprs))){
-      #   foo[asdf] = which(names(refs) == names(exprs)[asdf])
-      # }
-      # refs = refs[,foo]
-      # ps = as.list(c(1:nrow(refs)))
-      # names(ps) = rownames(refs)
-      # foo = sapply(strsplit(names(ps),"\\."),"[",1)
-      # 
-      # ## Collapse cell types
-      # baz = list()
-      # for(x in foo){
-      #   baz[[x]] = c(unlist(ps[foo == x]))
-      # }
-      # ps = baz
-      # 
-      # ## dtangle(row=sample col=gene, uses top10% of genes, data_type adjusts gamma fuzzfactor, )
-      # ## TODO data_type... by studyid? i guess just change if rnaseq.
-      # data_type = "microarray-gene"
-      # 
-      # res = dtangle(exprs, references = refs,
-      #               pure_samples = ps,
-      #               data_type=data_type,
-      #               n_markers = .2,
-      #               marker_method = "ratio")
-      
-      exprs = data.frame(t(exprs))
-      names(exprs) = rownames(y)
-      rownames(exprs) = names(y)
-      res = brainCells(exprs)
-      
-      # wb.coef = res$estimates
-      # bar = which(rownames(wb.coef) %in% rownames(refs))
-      # if(length(bar) > 0) wb.coef = wb.coef[-bar,]
-      
-      wb.coef = res
-      
-      png(paste("./QCplots/",tissue,"_deconvolution_",study_id[[i]],".png", sep =""), res=300,units="in",height=4,width=6)
-      boxplot(wb.coef, las = 2, outline = TRUE, col = 'lightblue', main = paste(study_id[[i]],"deconvolution. Tissue:", datExprTissue$FACTOR_tissue[which(datExprTissue$FACTOR_studyID == study_id[[i]])[1]]))
-      dev.off()
-      
-      ## PCA reduction of peripheral leukocyte proportions
-      design =  model.matrix( ~ -1 + ., data = predictors)
-      design = design[,!colnames(design) %in% c("FACTOR_dxAD")]
-      
-      coefs = data.frame("NA")
-      fit = try(lm(as.matrix(wb.coef)  ~ design))
-      if(class(fit) != "try-error") {
-        fit = summary(fit)
-        coefs = lapply(fit, function(x) broom::tidy(x$coefficients))
-        coefs = ldply(coefs)
-        coefs = coefs[grepl("FACTOR_dx", coefs$.rownames),]
-        coefs = coefs[!is.na(coefs$Pr...t..), ]
-        coefs$FDR = p.adjust(coefs$Pr...t.., 'fdr')
-        coefs$.id = gsub("Response ", "", coefs$.id)
-        wb_coef_set[[i]] = data.frame(StudyID = study_id[[i]], coefs)
-      } else {
-        wb_coef_set[[i]] = data.frame()
-      }
-      
-      fwrite(coefs,file = paste(metafolder,"/",tissue,"_deconvolution_",study_id[[i]],".csv", sep=""), sep=",")
-
-    }
-    
     # remove genes with low variance
     var_filter = lapply(y, sd)
     low_var_filter = var_filter[is.na(var_filter) | var_filter < .001]
@@ -224,38 +147,7 @@ for(tissue in tissues){
     # predictors = predictors[,colnames(predictors) %in% c("FACTOR_Age", "FACTOR_dx", "FACTOR_Sex", "FACTOR_Batch")ALSE]
     mod = model.matrix(~ ., data= predictors) # model with known factors and covariates
     mod0 = model.matrix(~1,data=predictors) # intercept only model
-    
-    svobj = NULL
-    foo = exprs(exprs)
-    
-    ##TODO wb.coef is called outside the if here...
-    ##TODO add some cat() so you know what's happening
-    
-    svdf = data.frame(NULL)
-    bar = try(min(c(num.sv(foo,mod, method = 'leek'), num.sv(foo,mod, method = 'be'))))
-    if(class(bar) != 'try-error'){
-      svobj = sva(foo,mod, n.sv = bar)
-      svdf = as.data.frame(svobj$sv)
-    }
-      
-    if(ncol(svdf) > 0){
-      colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
-      predictors = data.frame(predictors, svdf)
-      
-      wb.coef = wb.coef[,colSums(wb.coef)>0]
-      cors = cor(data.frame(svdf, wb.coef),use='pairwise.complete.obs')
-      
-      png(paste("./QCplots/",tissue,"_deconvolution_SVDF",paste("_", study_id[[i]]),".png", sep =""), res=300,units="in",height=6,width=6)
-      corrplot::corrplot(cors, tl.col = 'black', number.cex = .5,
-                         main = paste(study_id[[i]],"deconvolution. Tissue:", datExprTissue$FACTOR_tissue[which(datExprTissue$FACTOR_studyID == study_id[[i]])[1]]),
-                         mar=c(0,0,3,0),
-                         order='hclust',method='color', addCoef.col = "black",
-                         addrect = 3, rect.lwd = 5,
-                         rect.col = 'black', outline = T,
-                         tl.srt = 45, tl.cex = 0.75)
-      dev.off()
-    }
-    
+
     # final design matrix for differential expression analysis
     # predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
     # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = 'CTL')
@@ -289,59 +181,17 @@ for(tissue in tissues){
     names(big_table)[names(big_table) %in% ".id"] = "GeneSymbol"
     save_results[[i]]  = big_table
     names(save_results)[[i]] = study_id[[i]]
-    
-  }
-  
-  
-  # difference between case-controls for cell types
-  # names(wb_coef_set) = study_id
-  if(length(wb_coef_set) > 0){
-    ##TODO a cat or message here
-    wb_coef_all = ldply(wb_coef_set)
-    
-    png(paste0("./QCplots/",tissue,"_deconvolution_diffMeans.png"),res=300,units="in",height=5,width=6.5)
-    g = ggplot(wb_coef_all, aes(x = .id, col = StudyID, y = Estimate)) + 
-      geom_point(pch = 1, position=position_dodge(0.9)) +
-      theme_classic() + 
-      geom_vline(xintercept = seq(from = 1.5, length.out = length(unique(wb_coef_all$.id))-1), linetype = 3, lwd = 0.3 ,col = 'navy') +
-      theme(axis.text.x = element_text(hjust = 1, angle = 90), legend.text = element_text(size = 5), legend.position = 'bottom') +
-      geom_hline(aes(yintercept = 0), col  ='navy', lwd = 0.3, linetype=2) +
-      xlab(NULL) + 
-      ylab("Estimated difference in concentration") +
-      scale_color_discrete(NULL) + 
-      geom_errorbar(aes(ymin = Estimate - Std..Error, ymax = Estimate + Std..Error), width = 0.1, position=position_dodge(0.9))
-    print(g)
-    dev.off()
-    
-    wb_coef_all = split(wb_coef_all, wb_coef_all$.id)
-    
-    cellMeta = list()
-    for(x in 1:length(wb_coef_all)){
-      temp = wb_coef_all[[x]]; # subset by cell type
-      if (length(temp$StudyID) < 5){
-        cat("\nskipping",names(wb_coef_all)[x])
-        next
-      }
-      weighted_meta = metafor::rma(yi =  temp$Estimate, sei = temp$Std..Error, weighted = TRUE)
-      meta_beta = weighted_meta$b
-      meta_se = weighted_meta$se
-      meta_pval = weighted_meta$pval
-      cellMeta[[x]] = data.frame(CellType = unique(temp$.id), Beta = meta_beta, SE = meta_se, P = meta_pval)
-    }
-    cellMeta = ldply(cellMeta)
-    cellMeta$FDR = p.adjust(cellMeta$P, 'fdr')
-    cellMeta
-    write.csv(cellMeta, file = paste(metafolder,"/",tissue,"_deconvolution_meta-sumstats.csv",sep=""),row.names = FALSE)
   }
     
   ## merge study-wise sum stats into table
-  ## TODO a cat or message here
+  cat("\nMerging sum stats.\n")
   mergestats = ldply(save_results)
   names(mergestats)[names(mergestats) %in% ".id"] = "studyID"
   mergestats$term = gsub("designFACTOR_|design", "", mergestats$term)
   
-  unique(mergestats$studyID) ## TODO fix up this with years
-  unique(mergestats$term)
+  print(unique(mergestats$studyID))
+  print(unique(mergestats$term))
+  ## TODO fix labels with years
   # mergestats$studyID[grepl("AddNeuroMed1", mergestats$studyID)] = "AddNeuroMed Batch 1 (year)"
   # mergestats$studyID[grepl("AddNeuroMed2", mergestats$studyID)] = "AddNeuroMed Batch 2 (year)"
   # mergestats$studyID[grepl("ADNI", mergestats$studyID)] = "ADNI (year)"
@@ -352,8 +202,6 @@ for(tissue in tissues){
   # mergestats$studyID[grepl("Samsudin", mergestats$studyID)] = "Samsudin et al. (year)"
   # mergestats$studyID[grepl("Scherzer", mergestats$studyID)] = "Scherzer et al. (year)"
   
-  
-  require(TxDb.Hsapiens.UCSC.hg38.knownGene)
   genes = genes(TxDb.Hsapiens.UCSC.hg38.knownGene)
   genes = data.frame(genes)
   genes$SYMBOL = select(org.Hs.eg.db,keys=as.character(genes$gene_id), keytype='ENTREZID', columns="SYMBOL")$SYMBOL
@@ -362,7 +210,7 @@ for(tissue in tissues){
   mergestats = mergestats[mergestats$GeneSymbol %in% genes$SYMBOL, ]
   
   fwrite(mergestats,
-         file = paste(metafolder, "/",tissue,"_AD_brain_perStudyDGEsummary.csv",sep=""),
+         file = paste(metafolder, "/",tissue,"_ADMCI_perStudyDGEsummary.csv",sep=""),
          quote = F, row.names= F,sep=",")
   
   
@@ -395,7 +243,7 @@ for(tissue in tissues){
               theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
               geom_boxplot(width=0.05, outlier.shape = NA, fill = "lightgrey", col = "black")
   
-  png(file = paste("./QCplots/",tissue,"_qcsva_ADbrMEGA_MERGESTUDY_violin.png", sep = ""),
+  png(file = paste("./QCplots/",tissue,"_qcsva_ADMCI_MEGA_MERGESTUDY_violin.png", sep = ""),
       res = 300, units = "in", height = 8, width = 11.5)
   print(g)
   dev.off()
@@ -407,7 +255,7 @@ for(tissue in tissues){
   agg_stats$CI_LOW = agg_stats$LOGP - (1.96*agg_stats$SD/sqrt(agg_stats$K))
   agg_stats$CI_HIGH = (1.96*agg_stats$SD/sqrt(agg_stats$K)) + agg_stats$LOGP
   
-  png(paste0("./QCplots/",tissue,"meanLOGP_term_DGE.png"),res=300,units="in",height=10,width=10)
+  png(paste0("./QCplots/",tissue,"_meanLOGP_term_DGE.png"),res=300,units="in",height=10,width=10)
   print(
     ggplot(agg_stats, aes(x = term, y = LOGP, fill = term)) +
     facet_wrap(~studyID, ncol = 3, scale = 'free_x') +
@@ -424,6 +272,7 @@ for(tissue in tissues){
   
   
   # Random effect meta-analysis
+  cat("\nGenewise random effect meta-analysis.\n")
   
   ## perform meta-analysis of genes (REML model)
   ## TODO cat or message here
@@ -532,10 +381,10 @@ for(tissue in tissues){
   
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_prefreeze_qcAD_brain_meta.txt", sep=""),
+         file = paste(metafolder,"/",tissue,"_prefreeze_qc_ADMCI_meta.txt", sep=""),
          quote  = F, row.names = F)
   write(names(res_save)[which(foo != "data.frame")],
-        file = paste(metafolder,"/",tissue,"_prefreeze_qcAD_brain_meta_NULLmetaforRMA.txt", sep=""))
+        file = paste(metafolder,"/",tissue,"_prefreeze_qc_ADMCI_meta_NULLmetaforRMA.txt", sep=""))
   
   
   # ab = res_df[res_df$GeneSymbol %in% gene_filter$GeneSymbol, ]
@@ -552,7 +401,6 @@ for(tissue in tissues){
   head(res_df)
   
   # Location of genes 
-  require(Homo.sapiens)
   locs <- select(Homo.sapiens, keys=as.character(res_df$GeneSymbol),keytype="SYMBOL", columns=c("ENTREZID", "TXCHROM","TXSTART","TXEND","TXSTRAND"))
   locs$WIDTH = abs(locs$TXSTART - locs$TXEND)
   locs = locs[order(locs$WIDTH,decreasing = T), ]
@@ -569,10 +417,11 @@ for(tissue in tissues){
   
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_freeze_qcAD_brain_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
+         file = paste(metafolder,"/",tissue,"_freeze_qcADMCI_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
   
   
   # qq-plot
+  cat("\nConstructing qq plot.")
   # association p-values
   assoc = data.frame(P = res_df$P, source='DGE Meta-analysis')
   # this is not the solution
@@ -638,17 +487,18 @@ for(tissue in tissues){
     scale_fill_discrete(NULL) +
     geom_line(aes(x = lexp, y = clower), colour ='grey' ,lwd = 0.75) +
     geom_line(aes(x = lexp, y = cupper), colour = 'grey', lwd = 0.75) +
-    geom_ribbon(aes(x = lexp, ymin = clower, ymax = cupper), fill="grey", alpha="0.2") +
+    geom_ribbon(aes(x = lexp, ymin = clower, ymax = cupper), fill="grey", alpha=0.2) +
     ggtitle(mclab)  +
     theme(axis.text = element_text(size = 15), axis.title = element_text(size = 15))
   
   # qplot
-  png(paste0("./QCplots/",tissue,"_qcADbr_meta_qqplot.png"),res=300,units="in",height=5,width=5)
+  png(paste0("./QCplots/",tissue,"_qcADMCI_meta_qqplot.png"),res=300,units="in",height=5,width=5)
   print(qplot)
   dev.off()
   
   
   ## Manhattan plot
+  cat("\nConstructing manhattan plot.")
   trim = res_df[!is.na(res_df$LOC),]
   trim = trim[grepl("[:]", trim$LOC), ]
   locs = strsplit(trim$LOC, "[:]")
@@ -707,9 +557,7 @@ for(tissue in tissues){
   sub = sub[order(sub$CHR, sub$pos), ]
   sub$SYMBOL = ifelse(sub$bonf < .05, sub$GeneSymbol, NA)
   
-  require(ggrepel)
-  
-  png(paste0("./QCplots/",tissue,"_qcADvCTL_brain_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
+  png(paste0("./QCplots/",tissue,"_qcADMCI_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
   # manhattan plot
   print(
   try(
@@ -729,6 +577,8 @@ for(tissue in tissues){
   
   
   # volcano plot
+  ### TODO some logic here to control the number of genes labeled
+  cat("\nConstructing volcano plot.")
   res_df$FDR = p.adjust(res_df$P, "fdr")
   res_df$BONF = p.adjust(res_df$P, "bonferroni")
   psize = -log10(res_df$P)
@@ -744,7 +594,7 @@ for(tissue in tissues){
   signCounts = table(sign(res_df$Log2FC))
   paste("n = ", signCounts, sep = "")
   
-  png(paste0("./QCplots/",tissue,"_qcADbr_meta-volcano.png"),res=300,units="in",height = 5, width = 6)
+  png(paste0("./QCplots/",tissue,"_qcADMCI_meta-volcano.png"),res=300,units="in",height = 5, width = 6)
   print(
     ggplot(res_df, aes(x = Log2FC, y = -log10(P))) + 
     geom_point(size = psize, col = col) + 
@@ -760,11 +610,12 @@ for(tissue in tissues){
   dev.off()
   
   top_df = res_df[!is.na(res_df$vLabel),]
+  ## TODO include a thing for AD or MCI in filename
+  fwrite(top_df,paste(metafolder,"/",tissue,"_meta_significant_log2_and_pvals.csv", sep=""))
   
-  fwrite(top_df,paste(metafolder,"/",tissue,"_brain_meta_significant_log2_and_pvals.csv", sep=""))
   
-  
-  ## Forest plots 
+  ## Forest plots
+  cat("\nConstructing forest plot.")
   pdf(paste(forestfolder,"/",tissue,"_FORESTPLOT_all.pdf",sep=""))
   
   res_filter = res_df[order(res_df$P,decreasing=F), ]
@@ -836,6 +687,7 @@ for(tissue in tissues){
   
   
   ## Directionality gene score
+  cat("\nConstructing directionality gene score and sign test plot.")
   res_df = res_df[order(res_df$P, decreasing = F), ]
   
   majority = max(table(sign(res_df$Log2FC)))
@@ -862,7 +714,7 @@ for(tissue in tissues){
   binomStats_df$bin = dplyr::ntile(binomStats_df$parameter, 1)
   cat("\n")
   
-  png(paste("./QCplots/",tissue,"_AD_brain_meta_signtest.png",sep=""), res = 300, units = "in", height = 5, width = 7.5)
+  png(paste("./QCplots/",tissue,"_ADMCI_meta_signtest.png",sep=""), res = 300, units = "in", height = 5, width = 7.5)
   print(
     ggplot(binomStats_df, aes(x = parameter, y = estimate)) + 
     geom_line(col = 'royalblue') + 
@@ -935,7 +787,6 @@ for(tissue in tissues){
   dim(exprs)
   
   # Identify SVA
-  require(sva)
   mod = model.matrix(~FACTOR_dx + FACTOR_studyID, data = datScaled) # model with known factors and covariates
   mod0 = model.matrix(~1,data=datScaled[as.numeric(rownames(mod)), ]) # intercept only model
   
@@ -960,8 +811,6 @@ for(tissue in tissues){
   ## linear regression models
   frm = " ~ FACTOR_dx + FACTOR_studyID + SV1"
   cat("\nBeginning linear regression models.\nFormula:",frm,"\n")
-  
-  require(lmerTest)
   
   genes = names(collapse)[names(collapse) %in% colnames(datAll)]
   genes = genes[-grep("FACTOR_",genes)]
@@ -993,8 +842,8 @@ for(tissue in tissues){
   lme_results$BONF = p.adjust(lme_results$P, 'bonferroni')
   lme_results = lme_results[order(lme_results$P, decreasing = F), ]
   
-  write(lme_failure,paste(megafolder,"/",tissue,"_ADbr_Linear_Model_Failed_Genes.txt",sep=""))
-  fwrite(lme_results,paste(megafolder,"/",tissue,"_ADbr_Linear_Model_Results.txt",sep=""))
+  write(lme_failure,paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Failed_Genes.txt",sep=""))
+  fwrite(lme_results,paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Results.txt",sep=""))
   
   head(lme_results)
   
@@ -1016,7 +865,7 @@ for(tissue in tissues){
   signCounts = table(sign(lme_results$Estimate))
   paste("n = ", signCounts, sep = "")
   
-  png(paste0("./QCplots/",tissue,"_qcADbr_mega_volcano.png"),res=300,units="in",height = 5, width = 6)
+  png(paste0("./QCplots/",tissue,"_qcADMCI_mega_volcano.png"),res=300,units="in",height = 5, width = 6)
   print(
     ggplot(lme_results, aes(x = Estimate, y = -log10(lme_results$P))) + 
     geom_point(size = psize, col = col) + 
@@ -1073,13 +922,13 @@ for(tissue in tissues){
     scale_fill_discrete(NULL) +
     geom_line(aes(x = lexp, y = clower), colour ='grey' ,lwd = 0.75) +
     geom_line(aes(x = lexp, y = cupper), colour = 'grey', lwd = 0.75) +
-    geom_ribbon(aes(x = lexp, ymin = clower, ymax = cupper), fill="grey", alpha="0.2") +
+    geom_ribbon(aes(x = lexp, ymin = clower, ymax = cupper), fill="grey", alpha=0.2) +
     ggtitle(mclab)  +
     theme(axis.text = element_text(size = 15), axis.title = element_text(size = 15))
   
   # qplot
   
-  png(paste0("./QCplots/",tissue,"_qcADbr_mega_qqplot.png"),res=300,units="in",height=5,width=5)
+  png(paste0("./QCplots/",tissue,"_qcADMCI_mega_qqplot.png"),res=300,units="in",height=5,width=5)
   print(qplot)
   dev.off()
   
@@ -1091,8 +940,8 @@ for(tissue in tissues){
   
   cat("\nPerforming correlation test between meta- and mega-analysis.")
   
-  meta_results = fread(paste(metafolder,"/",tissue,"_freeze_qcAD_brain_meta_Nmin4_LeaveOneOut.txt",sep=""))
-  mega_results = fread(paste(megafolder,"/",tissue,"_ADbr_Linear_Model_Results.txt",sep=""))
+  meta_results = fread(paste(metafolder,"/",tissue,"_freeze_qcADMCI_meta_Nmin4_LeaveOneOut.txt",sep=""))
+  mega_results = fread(paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Results.txt",sep=""))
   
   meta_results$t.value = meta_results$Log2FC / meta_results$SE
   names(meta_results)[which(names(meta_results) == ".id")] = "GeneSymbol"
@@ -1103,7 +952,7 @@ for(tissue in tissues){
   meta_results = meta_results[order(meta_results$GeneSymbol),]
   mega_results = mega_results[order(mega_results$GeneSymbol),]
   
-  sink(paste0("./",tissue,"_ADbr_metamega_trimmed_genes.txt"))
+  sink(paste0("./",tissue,"_ADMCI_metamega_trimmed_genes.txt"))
     cat("\nMeta genes not in mega:",meta_results$GeneSymbol[!(meta_results$GeneSymbol %in% mega_results$GeneSymbol)])
     cat("\nMega genes not in meta:",mega_results$GeneSymbol[!(mega_results$GeneSymbol %in% meta_results$GeneSymbol)])
   sink()
@@ -1120,7 +969,7 @@ for(tissue in tissues){
   corp = cor.test(-log10(meta_trim$P),-log10(mega_trim$P))
   print(corp)
   
-  sink(paste0(file="./",tissue,"_ADbr_metamega_correlations.txt"))
+  sink(paste0(file="./",tissue,"_ADMCI_metamega_correlations.txt"))
     print(cors)
     print(core)
     print(corp)
