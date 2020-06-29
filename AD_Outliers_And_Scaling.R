@@ -6,7 +6,7 @@ setwd("~/PsychGENe/brain/")
 # Update gene symbols for AD gene expression data sets
 qcFolder = "./QCplots/"
 
-tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum")
+tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole blood")
 
 require(data.table)
 require(plyr)

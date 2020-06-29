@@ -40,7 +40,7 @@ if(!dir.exists(QCfolder)){ dir.create(QCfolder)}
 NormOut = paste(getwd(),"/normalized_data",sep="")
 if(!dir.exists(NormOut)){ dir.create(NormOut)}
 
-scripts = list.files("./", "ADbr_Import.*(r|R)")
+scripts = list.files("./", "AD(br|bl)_Import.*(r|R)")
 cat("Scripts:\n")
 print(scripts)
 
@@ -55,8 +55,9 @@ for(script in scripts){
   Exprs = data.frame()
   covs = data.frame()
   source(script)  ## output in "Exprs" study name in "studyname" covariates in "covs"
-  ##log2 or RMA, quantile normalized
+  ## log2 or RMA, quantile normalized
   ## PROBID as column 1, other column names as subjects
+  ## names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
   
   # Boxplot of expression
   ## TODO consider ordering and color coding or labeling by tissue
