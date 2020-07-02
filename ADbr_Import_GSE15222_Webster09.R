@@ -17,10 +17,12 @@ rawcovs = fread(paste0(rawlocation,"GSE15222/samples.covar"))
 
 Exprs = exprs(data)
 ## TODO i'm still not sure about this guy.
-## These data already normalized and log10.
+## These data already normalized/background subtracted
+## asinh approximates ln(x) + a constant for "large x"
 # Exprs = normalizeQuantiles(Exprs)
 # Exprs = log2(Exprs)
-# Exprs = Exprs/log(2)
+Exprs = asinh(Exprs)
+Exprs = Exprs/log(2)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 
 # Column 1    Group identifier

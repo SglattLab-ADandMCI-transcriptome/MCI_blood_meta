@@ -85,7 +85,7 @@ all((anames %in% bnames))
 all((bnames %in% anames))
 Exprs = rbind(aExprs,bExprs)
 
-#TODO actually do
+
 IDs =  Exprs$PROBEID
 ensembl = useMart("ensembl",dataset="hsapiens_gene_ensembl")
 ## listattributes for affymetrix a and b

@@ -44,11 +44,6 @@ scripts = list.files("./", "AD(br|bl)_Import.*(r|R)")
 cat("Scripts:\n")
 print(scripts)
 
-# for(script in scripts){
-#   thing = readLines(script)
-#   if(any(grepl("TODO",thing))) print(script)
-# }
-
 for(script in scripts){
   message(script)
   studyname = "STUDY_NAME"
