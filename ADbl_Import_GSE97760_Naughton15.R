@@ -54,7 +54,7 @@ for(foo in 1:q){
 Exprs$PROBEID = probes
 
 
-## covs TODO
+## covs 
 gse = getGEO("GSE97760")
 covs = data.frame(
     Sample_ID = gse$GSE97760_series_matrix.txt.gz@phenoData@data$geo_accession,

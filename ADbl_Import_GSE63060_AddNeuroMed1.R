@@ -1,10 +1,6 @@
 ## Import data from GSE63060 aka AddNeuroMed1
 ## GCH
 
-## TODO discuss the one subject not in the covariates list
-## TODO was this already log2'd?
-## they are likely arcsinh'd, which is similar to log2 but behaves better around 0
-
 require(data.table)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
@@ -39,8 +35,7 @@ for(foo in 1:q){
 }
 Exprs$PROBEID = probes
 ## already quantile normalized
-# foo = log2(Exprs[,-1])
-# Exprs = data.frame(PROBEID=probes,foo)
+## lumi does arcsinh
 names(Exprs) = gsub("X","",names(Exprs))
 
 
@@ -54,7 +49,7 @@ covs$FACTOR_ethnicity[grepl("Unknown",covs$FACTOR_ethnicity)] = "unknown"
 covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole blood"
 
 
-#4856076038_D is not in the covs list
+#4856076038_D is not in the covs list, excluding.
 foo = which(names(Exprs)=="4856076038_D")
 Exprs = Exprs[,-foo]
 

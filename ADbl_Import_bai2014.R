@@ -17,6 +17,21 @@ Exprs = exprs(RMA)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub("_HG.U133_Plus_2.CEL.gz","",names(Exprs))
 
+## probe/gene translation
+## [HG-U133_Plus_2] Affymetrix Human Genome U133 Plus 2.0 Array
+translist = fread(paste0(rawlocation,"blood/GSE18309/GPL570-55999.txt"),skip=16)
+q = length(Exprs$PROBEID)
+cat("Replacing probe IDs with gene symbols.\n")
+for(foo in 1:q){
+  if(Exprs$PROBEID[foo] %in% translist$ID){
+    bar = translist$`Gene Symbol`[Exprs$PROBEID[foo] == translist$ID]
+    bar = strsplit(bar," ")[[1]][1]
+    Exprs$PROBEID[foo] = bar
+  }
+  cat(foo,"/",q,"\r")
+}
+
+
 covs = read.xlsx(paste0(rawlocation,"blood/bai2014/NIHMS562483-supplement-Supplemental_Table1.xlsx"), startRow = 13)
 covs = covs[,c(1,13,4,6,3,1)]
 names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")

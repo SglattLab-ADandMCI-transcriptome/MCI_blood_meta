@@ -15,6 +15,7 @@ setwd("~/PsychGENe/brain/")
 require(affy)
 require(oligo)
 require(plyr)
+require(dplyr)
 require(ggplot2)
 require(data.table)
 require(gcrma)
@@ -25,9 +26,6 @@ require(illuminaHumanv4.db)
 require(GEOquery)
 require(biomaRt)
 require(edgeR)
-
-##TODO ethnicity cleanup/organization
-##TODO hispanic collapse vs white/black/etc
 
 ## Will have raw data on a flash drive eventually
 rawlocation = "D:/brain/data/"
@@ -50,7 +48,7 @@ for(script in scripts){
   Exprs = data.frame()
   covs = data.frame()
   source(script)  ## output in "Exprs" study name in "studyname" covariates in "covs"
-  ## log2 or RMA, quantile normalized
+  ## TODO (arcsinh or log2) or RMA, quantile normalized
   ## PROBID as column 1, other column names as subjects
   ## names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
   

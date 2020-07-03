@@ -1,9 +1,6 @@
 ## Import data from GSE63061 aka AddNeuroMed2
 ## GCH
 
-## TODO is this already log2?
-## they are likely arcsinh'd, which is similar to log2 but behaves better around 0
-
 require(data.table)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
@@ -32,8 +29,7 @@ for(foo in 1:q){
 }
 Exprs$PROBEID = probes
 ## already quantile normalized
-# foo = log2(Exprs[,-1])
-# Exprs = data.frame(PROBEID=probes,foo)
+## lumi does arcsinh
 names(Exprs) = gsub("X","",names(Exprs))
 
 

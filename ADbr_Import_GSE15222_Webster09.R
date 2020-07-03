@@ -1,5 +1,4 @@
 ## Import data from GSE15222 aka Webster09
-## TODO get what parts are the alzheimer's samples from
 ## GCH
 
 require(data.table)
@@ -17,11 +16,11 @@ rawcovs = fread(paste0(rawlocation,"GSE15222/samples.covar"))
 
 Exprs = exprs(data)
 ## TODO i'm still not sure about this guy.
-## These data already normalized/background subtracted
+## These data already background subtracted
 ## asinh approximates ln(x) + a constant for "large x"
 # Exprs = normalizeQuantiles(Exprs)
 # Exprs = log2(Exprs)
-Exprs = asinh(Exprs)
+Exprs = asinh(Exprs)  ## TODO final decision on arcsinh
 Exprs = Exprs/log(2)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 

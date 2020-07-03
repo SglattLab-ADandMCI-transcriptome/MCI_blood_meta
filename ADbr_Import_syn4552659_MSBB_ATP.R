@@ -62,7 +62,6 @@ aRMA = justGCRMA(filenames = afiles,normalize = T,optimize.by = "memory",celfile
 aExprs = exprs(aRMA)
 aExprs = data.frame(PROBEID = rownames(aExprs), aExprs)
 ## right now the 49804 b file is corrupted, which kills the whole thing. excluding.
-## TODO figure or fix.  this may be from an area we don't care about, and so is only
 ## relevant to a small portion of batch effect correction.
 bfiles = bfiles[-grep("AMP-AD_MSBB_MSSM_AffymetrixHG-U133B_49804hg133b11.cel",bfiles,ignore.case = T)]
 bRMA = justGCRMA(filenames = bfiles,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"syn4552659"))

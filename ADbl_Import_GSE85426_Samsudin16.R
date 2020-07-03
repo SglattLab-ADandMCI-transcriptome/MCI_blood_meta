@@ -1,7 +1,6 @@
 ## Import data from GSE85426 aka Samsudin16
 ## GCH
 
-## TODO 2 covs or 2 data points ... but raw
 ## TODO ethnicity question
 
 require(data.table)
@@ -17,7 +16,7 @@ cat("Reading normalized data from GSE85426 aka Samsudin16\n")
 ## recall that 2 subjects have been removed due to missing covs
 files = list.files(paste0(rawlocation,"blood/GSE85426/raw microarray"), full.names =  T, pattern = '.txt', recursive =T)
 Exprs = list()
-for(q in 1:length(files)){ ## TODO get real data or revert
+for(q in 1:length(files)){
   bar = fread(files[[q]], h=T,skip=9,data.table=F)
   Exprs[[q]] = bar$gMedianSignal
   name = gsub(".+/","",files[[q]])
@@ -55,8 +54,9 @@ Exprs$PROBEID = probes
 
 
 ## covariates
+## note 2 samples are lost because we do not have the raw form
 covs = fread(paste0(rawlocation,"blood/GSE85426/E-GEOD-85426.sdrf.txt"),data.table=F)
-covs = covs[,c(1,33,13,5,1,10)] #ethnicity missing, likely asian
+covs = covs[,c(1,33,13,5,1,10)] #ethnicity missing
 names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
 covs$FACTOR_ethnicity = NA
 covs$FACTOR_dx[grepl("control",covs$FACTOR_dx)] = "CTL"

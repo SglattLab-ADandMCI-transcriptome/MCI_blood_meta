@@ -169,8 +169,7 @@ for(tissue in tissues){
   # PCA analysis
   cat("\nPerforming PCA analysis.\n")
   pca = prcomp(geneExpr)
-  ######### TODO something is happening here due to broken names maybe? a big pile of Infs is around
-  
+
   # calculate variance explained by PCs
   sdev=(pca$sdev^2)/sum(pca$sdev^2)*100
   sdev=paste("PC", 1:length(sdev), " (", round(sdev,2),"%)", sep="")
