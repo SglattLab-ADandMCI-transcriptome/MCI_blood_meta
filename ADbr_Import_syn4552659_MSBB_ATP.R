@@ -37,7 +37,9 @@ print(covs$FACTOR_dx)
 
 print(covs$FACTOR_ethnicity)
 covs$FACTOR_ethnicity = factor(covs$FACTOR_ethnicity)
-levels(covs$FACTOR_ethnicity) = c("asian","black","hispanic","white")
+## I would suggest we leave as White, Black, Asian, and then anyone coded as
+## Hispanic recode as missing. -SG
+levels(covs$FACTOR_ethnicity) = c("asian","black","other","white")
 print(covs$FACTOR_ethnicity)
 print(covs$FACTOR_sex)
 covs$FACTOR_sex = factor(covs$FACTOR_sex)

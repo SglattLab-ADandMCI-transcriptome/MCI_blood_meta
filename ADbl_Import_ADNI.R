@@ -143,7 +143,6 @@ rm(adni.expr)
 rm(adni.covs)
 rm(adni.median)
 rm(adni.norm)
-rm(adni.stuff)
 
 rm(age)
 rm(bloodyear)
