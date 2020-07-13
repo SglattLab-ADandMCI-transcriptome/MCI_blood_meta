@@ -19,6 +19,19 @@ Exprs = exprs(RMA)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub(".CEL.gz","",names(Exprs))
 
+## [HG-U133A] Affymetrix Human Genome U133A Array
+translist = fread(paste0(rawlocation,"blood/GSE6613/GPL96-57554.txt"),skip=16)
+q = length(Exprs$PROBEID)
+cat("Replacing probe IDs with gene symbols.\n")
+for(foo in 1:q){
+  if(Exprs$PROBEID[foo] %in% translist$ID){
+    bar = translist$`Gene Symbol`[Exprs$PROBEID[foo] == translist$ID]
+    bar = strsplit(bar," ")[[1]][1]
+    Exprs$PROBEID[foo] = bar
+  }
+  cat(foo,"/",q,"\r")
+}
+
 
 ## covariates
 covs = fread(paste0(rawlocation,"blood/GSE6613/E-GEOD-6613.sdrf.txt"),data.table=F)
