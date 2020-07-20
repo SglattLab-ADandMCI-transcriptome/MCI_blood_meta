@@ -3,7 +3,8 @@
 
 ### TODO #age and gender missing decide things
 
-require(gcrma)
+# require(gcrma)
+require(affy)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -13,9 +14,17 @@ cat("Reading CEL files from GSE18309 aka Chen09\n")
 
 files = list.files(paste0(rawlocation,"blood/GSE18309/data"),".CEL",full.names = F)
 ## RMA is similar to log2 and normalize = T will quantile normalize
-RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/GSE18309/data/"))
+# RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/GSE18309/data/"))
+# Exprs = exprs(RMA)
+batch = ReadAffy(filenames = files,celfile.path = paste0(rawlocation,"blood/GSE18309/data/"))
+eset = expresso(batch, 
+                bgcorrect.method = "mas",
+                normalize.method = "quantiles",
+                pmcorrect.method = "mas",
+                summary.method = "avgdiff")
 
-Exprs = exprs(RMA)
+Exprs = exprs(eset)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub(".CEL.gz","",names(Exprs))
 
@@ -46,7 +55,9 @@ covs$FACTOR_dx[covs$FACTOR_dx=="normal"] = "CTL"
 covs$FACTOR_dx[covs$FACTOR_dx=="Alzheimers disease"] = "AD"
 covs$FACTOR_dx[covs$FACTOR_dx=="mild cognitive impairment"] = "MCI"
 
-rm(RMA)
+# rm(RMA)
+rm(batch)
+rm(eset)
 rm(translist)
 
 

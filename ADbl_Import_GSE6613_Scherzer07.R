@@ -3,7 +3,8 @@
 
 ## TODO  #gender, age, ethnicity missing
 
-require(gcrma)
+# require(gcrma)
+require(affy)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -13,9 +14,17 @@ cat("Reading CEL files from GSE6613 aka Scherzer07\n")
 
 files = list.files(paste0(rawlocation,"blood/GSE6613/data"),".CEL",full.names = F)
 ## RMA is similar to log2 and normalize = T will quantile normalize
-RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/GSE6613/data/"))
+# RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/GSE6613/data/"))
+# Exprs = exprs(RMA)
+batch = ReadAffy(filenames = files,celfile.path = paste0(rawlocation,"blood/GSE6613/data//"))
+eset = expresso(batch, 
+                bgcorrect.method = "mas",
+                normalize.method = "quantiles",
+                pmcorrect.method = "mas",
+                summary.method = "avgdiff")
 
-Exprs = exprs(RMA)
+Exprs = exprs(eset)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub(".CEL.gz","",names(Exprs))
 
@@ -48,4 +57,7 @@ covs$FACTOR_dx[!(grepl("PD|CTL|AD",covs$FACTOR_dx))] = "Other"
 covs$Sample_ID = gsub("GSE6613","",covs$Sample_ID)
 head(covs)
 
-rm(RMA)
+# rm(RMA)
+rm(batch)
+rm(eset)
+rm(translist)

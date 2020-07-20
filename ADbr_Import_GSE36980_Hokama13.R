@@ -2,7 +2,8 @@
 ## GCH
 
 require(data.table)
-require(oligo)
+# require(oligo)
+require(affy)
 require(GEOquery)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
@@ -12,10 +13,18 @@ studyname = "Hokama13"
 cat("Reading CEL files from GSE36980 aka Hokama13\n")
 files = list.files(paste0(rawlocation,"GSE36980/"),".CEL",full.names = T)
 ## RMA is similar to log2 and normalize = T will quantile normalize
-batch = read.celfiles(filenames = files)
-RMA = oligo::rma(batch,normalize = T)
+# batch = read.celfiles(filenames = files)
+# RMA = oligo::rma(batch,normalize = T)
+# Exprs = exprs(RMA)
+batch = ReadAffy(filenames = files)
+eset = expresso(batch, 
+                bgcorrect.method = "mas",
+                normalize.method = "quantiles",
+                pmcorrect.method = "mas",
+                summary.method = "avgdiff")
 
-Exprs = exprs(RMA)
+Exprs = exprs(eset)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = unlist(lapply(strsplit(names(Exprs),"\\."), `[[`,1))
 
@@ -48,6 +57,8 @@ levels(covs$FACTOR_sex) = c("female","male")
 print(covs$FACTOR_sex)
 print(head(covs))
 
-rm(RMA)
+# rm(RMA)
 rm(rawcovs)
 rm(batch)
+rm(eset)
+rm(translist)

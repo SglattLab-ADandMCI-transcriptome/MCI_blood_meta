@@ -26,7 +26,8 @@ for(q in 1:length(files)){
 Exprs = ldply(Exprs)
 
 trans = normalizeQuantiles(t(Exprs[,-1]))
-trans_norm = log2(trans)
+# trans_norm = log2(trans)
+trans_norm = asinh(trans)
 IDs = Exprs$.id
 Exprs = data.frame(PROBEID = bar$ProbeName,trans_norm)
 IDs = gsub("_.*","",IDs)

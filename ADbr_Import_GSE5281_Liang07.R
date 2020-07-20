@@ -2,7 +2,8 @@
 ## GCH
 
 require(data.table)
-require(gcrma)
+# require(gcrma)
+require(affy)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -11,9 +12,17 @@ studyname = "Liang07"
 cat("Reading CEL files from GSE5281 aka Liang07\n")
 files = list.files(paste0(rawlocation,"GSE5281/"),".CEL",full.names = F)
 ## RMA is similar to log2 and normalize = T will quantile normalize
-RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"GSE5281/"))
+# RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"GSE5281/"))
+# Exprs = exprs(RMA)
+batch = ReadAffy(filenames = files,celfile.path = paste0(rawlocation,"GSE5281/"))
+eset = expresso(batch, 
+                bgcorrect.method = "mas",
+                normalize.method = "quantiles",
+                pmcorrect.method = "mas",
+                summary.method = "avgdiff")
 
-Exprs = exprs(RMA)
+Exprs = exprs(eset)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = unlist(lapply(strsplit(names(Exprs),"\\."), `[[`,1))
 
@@ -49,5 +58,8 @@ levels(covs$FACTOR_ethnicity) = c("caucasian","unknown")
 print(covs$FACTOR_ethnicity)
 print(head(covs))
 
-rm(RMA)
+# rm(RMA)
 rm(rawcovs)
+rm(batch)
+rm(eset)
+rm(translist)

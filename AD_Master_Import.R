@@ -62,7 +62,7 @@ for(script in scripts){
             las = 2, 
             xaxt = "n",
             outline = F, 
-            ylab = expression(paste0("log"[2]," expression (quantile normalized)")),
+            ylab = expression("arcsinh expression (quantile normalized)"),
             main = paste0("Expression data from:",studyname))
     axis(side = 1, 
          labels = paste("S",1:(ncol(Exprs)-1),sep=""), 

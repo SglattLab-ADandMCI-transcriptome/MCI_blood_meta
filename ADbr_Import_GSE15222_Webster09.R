@@ -20,8 +20,7 @@ Exprs = exprs(data)
 ## asinh approximates ln(x) + a constant for "large x"
 # Exprs = normalizeQuantiles(Exprs)
 # Exprs = log2(Exprs)
-Exprs = asinh(Exprs)  ## TODO final decision on arcsinh
-Exprs = Exprs/log(2)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 
 # Column 1    Group identifier

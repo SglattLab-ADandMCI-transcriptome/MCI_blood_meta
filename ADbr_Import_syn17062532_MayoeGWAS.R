@@ -51,7 +51,8 @@ Exprs = rbind(t(CBEdata),t(TCXdata))
 # prb = names(Exprs)[-c(1,2)]
 # Exprs = Exprs[,-c(1,2)]
 Exprs = t(Exprs)
-Exprs = log2(Exprs)
+# Exprs = log2(Exprs)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = prb, Exprs)
 names(Exprs) = c("PROBEID",subj)
 

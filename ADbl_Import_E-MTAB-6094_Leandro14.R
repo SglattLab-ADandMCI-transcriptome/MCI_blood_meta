@@ -26,7 +26,8 @@ foo = ldply(Exprs,as.numeric)
 names(foo) = c("id",names(Exprs[[1]]))
 
 norm = normalizeQuantiles(t(foo[,-1]))
-trans = log(norm,2)
+# trans = log(norm,2)
+trans = asinh(norm)
 
 Exprs = data.frame(names(foo)[-1],trans, stringsAsFactors = F)
 names(Exprs) = c("PROBEID",toupper(foo$id))

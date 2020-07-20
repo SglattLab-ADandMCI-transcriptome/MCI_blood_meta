@@ -18,7 +18,8 @@ data = fread(paste0(rawlocation,"GSE29378/GSE29378_non-normalized.txt.gz"),data.
 nsubj = (ncol(data) - 1) /2
 Exprs = data[,(1:nsubj)*2]
 Exprs = normalizeQuantiles(Exprs)
-Exprs = log2(Exprs)
+# Exprs = log2(Exprs)
+Exprs = asinh(Exprs)
 
 Exprs = data.frame(PROBEID = data$ID_REF, Exprs)
 

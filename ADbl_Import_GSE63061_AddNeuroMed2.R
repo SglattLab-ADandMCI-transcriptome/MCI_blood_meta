@@ -9,6 +9,7 @@ studyname = "AddNeuroMed2"
 
 cat("Reading normalized data from GSE63061 aka AddNeuroMed2\n")
 
+## These data were pre asinh'd with limma
 Exprs = fread(paste0(rawlocation,"blood/GSE63061/data/GSE63061_normalized.txt.gz"),fill=T,data.table=F)
 names(Exprs)[1] = "PROBEID"
 ## probe/gene translation

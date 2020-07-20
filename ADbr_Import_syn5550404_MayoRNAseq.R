@@ -22,10 +22,12 @@ genes = TCXdata$ensembl_id
 CBEnames = names(CBEdata)[-1]
 TCXnames = names(TCXdata)[-1]
 
-CBEExprs = cpm(CBEdata[-1],log=T)
-TCXExprs = cpm(TCXdata[-1],log=T)
+CBEExprs = cpm(CBEdata[-1],log=F)
+TCXExprs = cpm(TCXdata[-1],log=F)
 CBEExprs = normalizeQuantiles(CBEExprs)
 TCXExprs = normalizeQuantiles(TCXExprs)
+CBEExprs = asinh(CBEExprs)
+TCXExprs = asinh(TCXExprs)
 
 Exprs = cbind(CBEExprs,TCXExprs)
 Exprs = data.frame(PROBEID = genes, Exprs)

@@ -33,7 +33,8 @@ Exprs = ldply(Exprs)
 Exprs = Exprs[,-1]
 Exprs = t(Exprs)
 Exprs = normalizeQuantiles(Exprs)
-Exprs = log2(Exprs)
+# Exprs = log2(Exprs)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = data@gpls$GPL1930@dataTable@table$GenName,Exprs)
 names(Exprs) = c("PROBEID",names(data@gsms))
 

@@ -9,7 +9,7 @@ studyname = "AddNeuroMed1"
 
 cat("Reading normalized data from GSE63060 aka AddNeuroMed1\n")
 
-
+## These data were pre asinh'd with limma
 Exprs = fread(paste0(rawlocation,"blood/GSE63060/data/GSE63060_normalized.txt.gz"),fill=T,data.table=F)
 ##this file has an erroneous extra crlf
 Exprs[30881,1] = Exprs[30880,1]

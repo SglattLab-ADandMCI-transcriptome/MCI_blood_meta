@@ -25,8 +25,9 @@ rownames(baz)=rownames(foo)
 foo = unlist(lapply(strsplit(files,"/|_"), `[[`, 4))
 colnames(baz)=foo
 baz = normalizeQuantiles(baz)
-baz = baz+1 ##log(0) is frown
-baz = log(baz,2)
+# baz = baz+1 ##log(0) is frown
+# baz = log(baz,2)
+baz = asinh(baz)
 Exprs = data.frame(PROBEID = rownames(baz), baz)
 
 subjects = gsub("_sample_table.txt","",files)

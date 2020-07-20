@@ -1,7 +1,8 @@
 ## Import data from Bai14
 ## GCH
 
-require(gcrma)
+# require(gcrma)
+require(affy)
 require(openxlsx)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
@@ -10,10 +11,18 @@ studyname = "Bai14"
 
 cat("Reading CEL files from bai2014 aka Bai14\n")
 files = list.files(paste0(rawlocation,"blood/bai2014/"),".CEL",full.names = F)
-## RMA is similar to log2 and normalize = T will quantile normalize
-RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/bai2014/"))
+# ## RMA is similar to log2 and normalize = T will quantile normalize
+# RMA = justGCRMA(filenames = files,normalize = T,optimize.by = "memory",celfile.path = paste0(rawlocation,"blood/bai2014/"))
+# Exprs = exprs(RMA)
+batch = ReadAffy(filenames = files,celfile.path = paste0(rawlocation,"blood/bai2014/"))
+eset = expresso(batch, 
+                 bgcorrect.method = "mas",
+                 normalize.method = "quantiles",
+                 pmcorrect.method = "mas",
+                 summary.method = "avgdiff")
 
-Exprs = exprs(RMA)
+Exprs = exprs(eset)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub("_HG.U133_Plus_2.CEL.gz","",names(Exprs))
 
@@ -46,4 +55,7 @@ covs$Sample_ID = gsub("_HG-U133_Plus_2.CEL.pimg","",covs$Sample_ID)
 covs$Sample_ID = gsub("-",".",covs$Sample_ID)
 print(head(covs))
 
-rm(RMA)
+# rm(RMA)
+rm(batch)
+rm(eset)
+rm(translist)

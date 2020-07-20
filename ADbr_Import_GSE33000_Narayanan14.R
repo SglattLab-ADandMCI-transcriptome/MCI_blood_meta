@@ -21,7 +21,8 @@ foo = lapply(foo,`[`,1)
 foo = unlist(foo)
 Exprs = Exprs[,-c(1:3)]
 Exprs = normalizeQuantiles(Exprs)
-Exprs = log2(Exprs)
+# Exprs = log2(Exprs)
+Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = foo, Exprs)
 
 ##all subjects are channel 2

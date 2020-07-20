@@ -134,6 +134,8 @@ names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnic
 
 
 foo = as.data.frame(t(sapply(adni.norm, as.numeric)))
+foo = 2^foo      ## RMA log2s it
+foo = asinh(foo) ## convert to arcsinh space
 Exprs = data.frame(PROBEID = colnames(adni.norm),foo)
 colnames(Exprs) = c("PROBEID",rownames(adni.norm))
 

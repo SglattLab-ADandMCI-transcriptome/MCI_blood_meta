@@ -22,9 +22,11 @@ all(genes == data2$gene_id)
 data1 = data1[,-c(1,2)]
 data2 = data2[,-c(1,2)]
 
-## add 1 so log doesn't produce -inf
-data1 = log2(data1+1)
-data2 = log2(data2+1)
+# ## add 1 so log doesn't produce -inf
+# data1 = log2(data1+1)
+# data2 = log2(data2+1)
+data1 = asinh(data1)
+data2 = asinh(data2)
 
 Exprs = data.frame(PROBEID = genes,data1,data2)
 
