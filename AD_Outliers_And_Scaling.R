@@ -6,7 +6,8 @@ setwd("~/PsychGENe/brain/")
 # Update gene symbols for AD gene expression data sets
 qcFolder = "./QCplots/"
 
-tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole blood")
+# tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole blood")
+tissues = "whole blood"
 
 require(data.table)
 require(plyr)
@@ -16,7 +17,7 @@ require(AnnotationDbi)
 require(TxDb.Hsapiens.UCSC.hg38.knownGene)
 require(ggplot2)
 
-cat("\nUpdating gene symbols.\n")
+cat("\Compiling gene symbols.\n")
 # https://www.gencodegenes.org/releases/22.html
 # get list of gene symbols
 genes = fread("./references/gencode.v22.annotation.gtf.gz",header=F,stringsAsFactors=FALSE)
@@ -86,6 +87,7 @@ for(tissue in tissues){
   rawdat = rawall[which(rawall$FACTOR_tissue==tissue),]
   study_id = unique(rawdat$FACTOR_studyID)
   df_list = list()
+  cat("\Updating gene symbols.\n")
   for(study in study_id){
     # read in the file and match genes
     cat(study,"\n")
@@ -97,9 +99,9 @@ for(tissue in tissues){
     genes_in_data = gsub("[.]", "-", genes_in_data)
    
     nomatch = genes_in_data[!genes_in_data %in% genes$SYMBOL]
-    nomatch_conv = select(org.Hs.eg.db, keys=as.character(nomatch), keytype='SYMBOL', columns='ENTREZID')
+    nomatch_conv = select(org.Hs.eg.db, keys=as.character(nomatch), keytype='ALIAS', columns='ENTREZID')
     nomatch_conv$updated_hgnc = select(org.Hs.eg.db, keys=as.character(nomatch_conv$ENTREZID), keytype='ENTREZID', columns='SYMBOL')$SYMBOL
-    nomatch_conv$mismatch = nomatch_conv$SYMBOL == nomatch_conv$updated_hgnc
+    nomatch_conv$mismatch = nomatch_conv$ALIAS == nomatch_conv$updated_hgnc
     noentrez = nomatch_conv[is.na(nomatch_conv$ENTREZID), ]
     
     datExpr = datExpr[,!colnames(datExpr) %in% noentrez$SYMBOL]

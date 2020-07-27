@@ -2,7 +2,6 @@
 ## GCH
 
 require(data.table)
-# require(oligo)
 require(affy)
 require(GEOquery)
 
@@ -16,21 +15,37 @@ files = list.files(paste0(rawlocation,"GSE36980/"),".CEL",full.names = T)
 # batch = read.celfiles(filenames = files)
 # RMA = oligo::rma(batch,normalize = T)
 # Exprs = exprs(RMA)
+
+
 batch = ReadAffy(filenames = files)
-eset = expresso(batch, 
+eset = expresso(batch,
                 bgcorrect.method = "mas",
                 normalize.method = "quantiles",
-                pmcorrect.method = "mas",
+                pmcorrect.method = "pmonly",
                 summary.method = "avgdiff")
 
-Exprs = exprs(eset)
+Exprs = data.frame(exprs(eset))
+Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = unlist(lapply(strsplit(names(Exprs),"\\."), `[[`,1))
 
 rawcovs = getGEO(filename = paste0(rawlocation,"GSE36980/GSE36980_series_matrix.txt.gz"))
 
-Exprs$PROBEID = unlist(lapply(strsplit(rawcovs@featureData@data$gene_assignment," "), `[`, 3))
+
+## probe/gene translation
+translist = data.frame(gene = unlist(lapply(strsplit(rawcovs@featureData@data$gene_assignment," "), `[`, 3)),
+                       ID = rawcovs@featureData@data$ID)
+probes = Exprs$PROBEID
+for(i in 1:length(probes)){
+  cat(i,"of",length(probes),"\r")
+  probe = NA
+  probe = translist$gene[translist$ID == probes[i]]
+  if(!is.na(probe)){
+    probes[i] = probe
+  }
+}
+Exprs$PROBEID = probes
 
 covs = data.frame(Sample_ID = rawcovs@phenoData@data$geo_accession,
                   FACTOR_tissue = rawcovs@phenoData@data$`tissue:ch1`,

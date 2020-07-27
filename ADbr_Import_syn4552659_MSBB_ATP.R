@@ -30,29 +30,31 @@ covs = data.frame(Sample_ID = keys$fileName,
                   FACTOR_sex = keys$FACTOR_sex,
                   FACTOR_ethnicity = keys$FACTOR_ethnicity)
 
-print(covs$FACTOR_dx)
+print(covs$FACTOR_dx[1:20])
 covs$FACTOR_dx[covs$FACTOR_dx >= 1] = "AD"
 covs$FACTOR_dx[covs$FACTOR_dx < 1] = "CTL"
-print(covs$FACTOR_dx)
+print(covs$FACTOR_dx[1:20])
 
-print(covs$FACTOR_ethnicity)
+print(covs$FACTOR_ethnicity[1:20])
 covs$FACTOR_ethnicity = factor(covs$FACTOR_ethnicity)
 ## I would suggest we leave as White, Black, Asian, and then anyone coded as
 ## Hispanic recode as missing. -SG
 levels(covs$FACTOR_ethnicity) = c("asian","black","other","white")
-print(covs$FACTOR_ethnicity)
-print(covs$FACTOR_sex)
+print(covs$FACTOR_ethnicity[1:20])
+print(covs$FACTOR_sex[1:20])
 covs$FACTOR_sex = factor(covs$FACTOR_sex)
 levels(covs$FACTOR_sex) = c("female","male")
-print(covs$FACTOR_sex)
-print(covs$FACTOR_tissue)
+print(covs$FACTOR_sex[1:20])
+print(covs$FACTOR_tissue[1:20])
 covs$FACTOR_tissue = factor(covs$FACTOR_tissue)
 levels(covs$FACTOR_tissue) = c("other","other","other","TCX",
                                "other","other","other","other",
                                "other","other","other","PFC",
                                "other","other","other","other",
                                "HIP","other","other")
-print(covs$FACTOR_tissue)
+print(covs$FACTOR_tissue[1:20])
+## + dropped, not the best but what else can we do
+covs$FACTOR_age = gsub("\\+","",covs$FACTOR_age)
 print(head(covs))
 
 cat("Reading CEL files from syn4552659 aka MSBB_ATP\n")
@@ -70,8 +72,11 @@ aeset = expresso(abatch,
                 summary.method = "avgdiff")
 
 aExprs = exprs(aeset)
+aExprs = normalizeQuantiles(aExprs)
 aExprs = asinh(aExprs)
 aExprs = data.frame(PROBEID = rownames(aExprs), aExprs)
+rm(abatch)
+rm(aeset)
 ## right now the 49804 b file is corrupted, which kills the whole thing. excluding.
 ## relevant to a small portion of batch effect correction.
 bfiles = bfiles[-grep("AMP-AD_MSBB_MSSM_AffymetrixHG-U133B_49804hg133b11.cel",bfiles,ignore.case = T)]
@@ -85,8 +90,11 @@ beset = expresso(bbatch,
                  summary.method = "avgdiff")
 
 bExprs = exprs(beset)
+bExprs = normalizeQuantiles(bExprs)
 bExprs = asinh(bExprs)
 bExprs = data.frame(PROBEID = rownames(bExprs), bExprs)
+rm(bbatch)
+rm(beset)
 
 anames = sub("^.*U133A_","MSBB",names(aExprs))
 anames = sub("hg133.*","",anames)
@@ -131,6 +139,8 @@ covs$Sample_ID = sub("hg133.*","",covs$Sample_ID)
 rm(rawcovs)
 rm(aExprs)
 rm(bExprs)
-rm(batch)
-rm(aeset)
-rm(beset)
+rm(foo)
+rm(foo0)
+rm(foo1)
+rm(foo2)
+

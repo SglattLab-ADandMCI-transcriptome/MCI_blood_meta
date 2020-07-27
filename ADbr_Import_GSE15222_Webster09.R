@@ -18,7 +18,7 @@ Exprs = exprs(data)
 ## TODO i'm still not sure about this guy.
 ## These data already background subtracted
 ## asinh approximates ln(x) + a constant for "large x"
-# Exprs = normalizeQuantiles(Exprs)
+Exprs = normalizeQuantiles(Exprs)
 # Exprs = log2(Exprs)
 Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)

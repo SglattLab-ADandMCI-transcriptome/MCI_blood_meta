@@ -22,6 +22,7 @@ eset = expresso(batch,
                  summary.method = "avgdiff")
 
 Exprs = exprs(eset)
+Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 Exprs = data.frame(PROBEID = rownames(Exprs), Exprs)
 names(Exprs) = gsub("_HG.U133_Plus_2.CEL.gz","",names(Exprs))

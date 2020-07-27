@@ -33,8 +33,12 @@ Exprs = data.frame(names(foo)[-1],trans, stringsAsFactors = F)
 names(Exprs) = c("PROBEID",toupper(foo$id))
 
 
-## covariates
-covs = fread(paste0(rawlocation,"/blood/E-MTAB-6094/E-MTAB-6094.sdrf.txt"),data.table = F)
+# ## probe/gene translation
+# translist = fread(paste0(rawlocation,"blood/E-MTAB-6094/A-MEXP-2183.adf.txt"),data.table=F)
+
+
+## covariates extracted from DOI 10.3233/JAD-170205
+# covs = fread(paste0(rawlocation,"blood/E-MTAB-6094/E-MTAB-6094.sdrf.txt"),data.table = F)
 covs = fread(paste0(rawlocation,"blood/E-MTAB-6094/extractedcovs.txt"),data.table=F)
 covs = covs[,c(1,1,3,2,7,1)]
 names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
