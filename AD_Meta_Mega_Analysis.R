@@ -1,4 +1,6 @@
 setwd("~/PsychGENe/brain/")
+
+## these can be set to do AD instead
 analysislabel = "MCI"
 caselabel = "MCI"
 controllabel = "CTL"
@@ -54,16 +56,33 @@ if(all(dattis == covtis, covtis == scaletis)){
   stop("Tissue files are... not right.")
 }
 
+## TODO autofigure criteria for dropping a tissue.  at lest 3 studies
+tissues = "whole_blood"
+
 for(tissue in tissues){
+  message("Beginning analysis: ",tissue)
   ## DGE per tissue per study, non-scaled data
-  datExprTissue = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"), data.table=F, stringsAsFactors = F)
-  datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"), data.table=F, stringsAsFactors = F)
+  datExprTissue = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),
+                        data.table=F, stringsAsFactors = F)
+  datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),
+                      data.table=F, stringsAsFactors = F)
   datExprCovs$FACTOR_age = as.numeric(sub("\\+","",datExprCovs$FACTOR_age))
   genes = datExprTissue$SYMBOL
   datExprTissue = data.frame(datExprCovs,t(datExprTissue[,-1]))
   names(datExprTissue) = c(names(datExprCovs),genes)
-  datExprTissue = datExprTissue[grep("CTL|AD",datExprTissue$FACTOR_dx),]
-  datExprTissue$FACTOR_dx = factor(datExprTissue$FACTOR_dx, levels = c("CTL","AD"))
+  datExprTissue = datExprTissue[grep(paste0(controllabel,"|",caselabel,"$"),datExprTissue$FACTOR_dx),]
+  if(sum(datExprTissue$FACTOR_dx == caselabel)==0){
+    message("No ",caselabel," cases found for tissue: ", tissue)
+    next()
+  }
+  
+  study_id = unique(datExprTissue$FACTOR_studyID)
+  for(study in study_id){
+    foo = sum(datExprTissue$FACTOR_dx[datExprTissue$FACTOR_studyID == study]==caselabel)
+    if(foo==0){
+      datExprTissue = datExprTissue[-which(datExprTissue$FACTOR_studyID == study),]
+    }
+  }
   
   study_id = unique(datExprTissue$FACTOR_studyID)
   save_results = list()
@@ -155,7 +174,7 @@ for(tissue in tissues){
     design = model.matrix( ~ ., predictors)
     design = design[,!grepl("CTL", colnames(design))]
     
-    # fit the linear model (log2 expression as response variable)
+    # fit the linear model (arcsinh expression as response variable)
     lmFit = lm(as.matrix(y) ~ -1 + design)
     
     # extract summary statistics
@@ -191,16 +210,6 @@ for(tissue in tissues){
   
   print(unique(mergestats$studyID))
   print(unique(mergestats$term))
-  ## TODO fix labels with years
-  # mergestats$studyID[grepl("AddNeuroMed1", mergestats$studyID)] = "AddNeuroMed Batch 1 (year)"
-  # mergestats$studyID[grepl("AddNeuroMed2", mergestats$studyID)] = "AddNeuroMed Batch 2 (year)"
-  # mergestats$studyID[grepl("ADNI", mergestats$studyID)] = "ADNI (year)"
-  # mergestats$studyID[grepl("Bai", mergestats$studyID)] = "Bai et al. (year)"
-  # mergestats$studyID[grepl("Chen", mergestats$studyID)] = "Chen et al. (year)"
-  # mergestats$studyID[grepl("Leandro", mergestats$studyID)] = "Leandro et al. (year)"
-  # mergestats$studyID[grepl("Maes", mergestats$studyID)] = "Maes et al. (year)"
-  # mergestats$studyID[grepl("Samsudin", mergestats$studyID)] = "Samsudin et al. (year)"
-  # mergestats$studyID[grepl("Scherzer", mergestats$studyID)] = "Scherzer et al. (year)"
   
   genes = genes(TxDb.Hsapiens.UCSC.hg38.knownGene)
   genes = data.frame(genes)
@@ -210,20 +219,12 @@ for(tissue in tissues){
   mergestats = mergestats[mergestats$GeneSymbol %in% genes$SYMBOL, ]
   
   fwrite(mergestats,
-         file = paste(metafolder, "/",tissue,"_ADMCI_perStudyDGEsummary.csv",sep=""),
+         file = paste(metafolder, "/",tissue,"_",analysislabel,"_perStudyDGEsummary.csv",sep=""),
          quote = F, row.names= F,sep=",")
   
   
   ## TODO fix these graph thingies
   graph_df = mergestats
-  # graph_df$term[graph_df$term %in% "psychosisYes"] = "Psychosis (Yes/No)"
-  graph_df$term[graph_df$term %in% "gendermale"] = "Sex (Female/Male)"
-  # graph_df$term[graph_df$term %in% "tobaccoYes"] = "Tobacco (Yes/No)"
-  graph_df$term[graph_df$term %in% "dxAD"] = "Diagnosis (AD/CTL)"
-  graph_df$term[graph_df$term %in% "ethnicitywhite"] = "White (Yes/No)"
-  graph_df$term[graph_df$term %in% "age"] = "Age (years)"
-  graph_df$term[graph_df$term %in% "tissue"] = "Sample Collected"
-  # graph_df$term[graph_df$term %in% "Batch"] = "Array batch"
   non_sv = graph_df[!grepl("SV",graph_df$term), ]
   sv_df = graph_df[grepl("SV",graph_df$term), ]
   sv_df$term = factor(sv_df$term,levels=paste("SV",1:20,sep=""))
@@ -243,7 +244,7 @@ for(tissue in tissues){
               theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
               geom_boxplot(width=0.05, outlier.shape = NA, fill = "lightgrey", col = "black")
   
-  png(file = paste("./QCplots/",tissue,"_qcsva_ADMCI_MEGA_MERGESTUDY_violin.png", sep = ""),
+  png(file = paste("./QCplots/",tissue,"_qcsva_",analysislabel,"_MEGA_MERGESTUDY_violin.png", sep = ""),
       res = 300, units = "in", height = 8, width = 11.5)
   print(g)
   dev.off()
@@ -255,7 +256,7 @@ for(tissue in tissues){
   agg_stats$CI_LOW = agg_stats$LOGP - (1.96*agg_stats$SD/sqrt(agg_stats$K))
   agg_stats$CI_HIGH = (1.96*agg_stats$SD/sqrt(agg_stats$K)) + agg_stats$LOGP
   
-  png(paste0("./QCplots/",tissue,"_meanLOGP_term_DGE.png"),res=300,units="in",height=10,width=10)
+  png(paste0("./QCplots/",tissue,"_",analysislabel,"_meanLOGP_term_DGE.png"),res=300,units="in",height=10,width=10)
   print(
     ggplot(agg_stats, aes(x = term, y = LOGP, fill = term)) +
     facet_wrap(~studyID, ncol = 3, scale = 'free_x') +
@@ -355,7 +356,7 @@ for(tissue in tissues){
                      Nsample = sum(sub_combn$N),
                      Ncase = sum(sub_combn$N_case),
                      Ncontrol = sum(sub_combn$N_control),
-                     Log2FC = res$beta, 
+                     arcsinh = res$beta, 
                      SE = res$se, 
                      # BetaStd = res.std$beta,
                      # SEstd = res.std$se,
@@ -381,10 +382,10 @@ for(tissue in tissues){
   
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_prefreeze_qc_ADMCI_meta.txt", sep=""),
+         file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta.txt", sep=""),
          quote  = F, row.names = F)
   write(names(res_save)[which(foo != "data.frame")],
-        file = paste(metafolder,"/",tissue,"_prefreeze_qc_ADMCI_meta_NULLmetaforRMA.txt", sep=""))
+        file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta_NULLmetaforRMA.txt", sep=""))
   
   
   # ab = res_df[res_df$GeneSymbol %in% gene_filter$GeneSymbol, ]
@@ -417,7 +418,7 @@ for(tissue in tissues){
   
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_freeze_qcADMCI_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
+         file = paste(metafolder,"/",tissue,"_freeze_qc",analysislabel,"_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
   
   
   # qq-plot
@@ -492,7 +493,7 @@ for(tissue in tissues){
     theme(axis.text = element_text(size = 15), axis.title = element_text(size = 15))
   
   # qplot
-  png(paste0("./QCplots/",tissue,"_qcADMCI_meta_qqplot.png"),res=300,units="in",height=5,width=5)
+  png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_meta_qqplot.png"),res=300,units="in",height=5,width=5)
   print(qplot)
   dev.off()
   
@@ -557,7 +558,7 @@ for(tissue in tissues){
   sub = sub[order(sub$CHR, sub$pos), ]
   sub$SYMBOL = ifelse(sub$bonf < .05, sub$GeneSymbol, NA)
   
-  png(paste0("./QCplots/",tissue,"_qcADMCI_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
+  png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
   # manhattan plot
   print(
   try(
@@ -584,24 +585,24 @@ for(tissue in tissues){
   psize = -log10(res_df$P)
   psize = (psize - min(psize))/(max(psize) - min(psize)) + 0.5
   col = rep("lightgrey", nrow(res_df))
-  col[which(abs(res_df$Log2FC) > 0.2)] = "dodgerblue3"
+  col[which(abs(res_df$arcsinh) > 0.2)] = "dodgerblue3"
   col[which(res_df$FDR < .05)] = "orange"
   col[which(res_df$BONF < .05)] = "firebrick3"
   
-  res_df$vLabel = ifelse(abs(res_df$Log2FC) > .4 | res_df$BONF < .05, res_df$GeneSymbol, NA)
+  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .4 | res_df$BONF < .05, res_df$GeneSymbol, NA)
   res_df$vLabel = gsub("[.]", "-", res_df$vLabel)
   
-  signCounts = table(sign(res_df$Log2FC))
+  signCounts = table(sign(res_df$arcsinh))
   paste("n = ", signCounts, sep = "")
   
-  png(paste0("./QCplots/",tissue,"_qcADMCI_meta-volcano.png"),res=300,units="in",height = 5, width = 6)
+  png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_meta-volcano.png"),res=300,units="in",height = 5, width = 6)
   print(
-    ggplot(res_df, aes(x = Log2FC, y = -log10(P))) + 
+    ggplot(res_df, aes(x = arcsinh, y = -log10(P))) + 
     geom_point(size = psize, col = col) + 
     theme_classic() + 
     theme(axis.text = element_text(size = 12), axis.title = element_text(size = 12), panel.border = element_rect(fill=NA,size = 1.5)) +
     geom_hline(yintercept = -log10(.05), col = 'orange', linetype = "dashed") + 
-    xlab( expression(paste("log"[2]," fold-change in gene expression"))) +
+    xlab( expression(paste("arcsinh score change in gene expression"))) +
     ylab( expression(paste("-log"[10],"(P-value)"))) + 
     geom_hline(aes(yintercept = -log10(.05/nrow(res_df))), col = 'red', lwd = 0.25,linetype=1) +
     geom_vline(aes(xintercept = 0), col = 'black',lwd=0.3, linetype=2) +
@@ -611,7 +612,7 @@ for(tissue in tissues){
   
   top_df = res_df[!is.na(res_df$vLabel),]
   ## TODO include a thing for AD or MCI in filename
-  fwrite(top_df,paste(metafolder,"/",tissue,"_meta_significant_log2_and_pvals.csv", sep=""))
+  fwrite(top_df,paste(metafolder,"/",tissue,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
   
   
   ## Forest plots
@@ -629,7 +630,7 @@ for(tissue in tissues){
     meta = res_filter[res_filter$GeneSymbol %in% topgenes[[i]], ]
     keep_studies = unlist(strsplit(as.character(meta$study_kept), ", "))
     
-    meta = data.frame(Log2FC = meta$Log2FC,
+    meta = data.frame(arcsinh = meta$arcsinh,
                       P = meta$P, SE = meta$SE, 
                       studyID = "Pooled result", 
                       Ncase = meta$Ncase, 
@@ -646,7 +647,7 @@ for(tissue in tissues){
     
     if(nrow(sub) > 0){
       
-      indiv = data.frame(Log2FC = sub$estimate, 
+      indiv = data.frame(arcsinh = sub$estimate, 
                          P = sub$p.value,
                          SE = sub$std.error, 
                          studyID = sub$studyID,
@@ -659,16 +660,16 @@ for(tissue in tissues){
       results = ldply(list(indiv,meta))} else{results = meta}
     
     results$P_label = paste("P = ", format(scientific=T,digits=3,results$P), sep = "")
-    results$CI_LOW = results$Log2FC - (1.96 * results$SE)
-    results$CI_HIGH = results$Log2FC  + (1.96 * results$SE)
+    results$CI_LOW = results$arcsinh - (1.96 * results$SE)
+    results$CI_HIGH = results$arcsinh  + (1.96 * results$SE)
     
     locus = res_df$LOC[res_df$GeneSymbol %in% topgenes[[i]]]
     
-    g = ggplot(results, aes(x = Log2FC, y = (studyID))) + 
+    g = ggplot(results, aes(x = arcsinh, y = (studyID))) + 
       geom_point(col = results$col) + 
       theme_bw() +
       xlim(min(floor(results$CI_LOW)), max(ceiling(results$CI_HIGH))) +
-      xlab(expression(paste("Log"[2], " fold change (95% CI)"))) +
+      xlab(expression(paste("arcsinh score change (95% CI)"))) +
       ylab(NULL) +
       ggtitle( topgenes[[i]]) +
       geom_vline(aes(xintercept = 0),linetype="dashed", col = "grey") +
@@ -690,11 +691,11 @@ for(tissue in tissues){
   cat("\nConstructing directionality gene score and sign test plot.")
   res_df = res_df[order(res_df$P, decreasing = F), ]
   
-  majority = max(table(sign(res_df$Log2FC)))
+  majority = max(table(sign(res_df$arcsinh)))
   broom::tidy(binom.test(x = majority, n = nrow(res_df), p = 0.5, alternative = 'two.sided'))
   
-  direction = sign(res_df$Log2FC)
-  dirAll = sign(sum(sign(res_df$Log2FC)))
+  direction = sign(res_df$arcsinh)
+  dirAll = sign(sum(sign(res_df$arcsinh)))
   
   binomStats = as.list(rep(NA, length(direction)))
   for( i in 1:length(direction)){
@@ -714,7 +715,7 @@ for(tissue in tissues){
   binomStats_df$bin = dplyr::ntile(binomStats_df$parameter, 1)
   cat("\n")
   
-  png(paste("./QCplots/",tissue,"_ADMCI_meta_signtest.png",sep=""), res = 300, units = "in", height = 5, width = 7.5)
+  png(paste("./QCplots/",tissue,"_qc",analysislabel,"_meta_signtest.png",sep=""), res = 300, units = "in", height = 5, width = 7.5)
   print(
     ggplot(binomStats_df, aes(x = parameter, y = estimate)) + 
     geom_line(col = 'royalblue') + 
@@ -734,246 +735,7 @@ for(tissue in tissues){
   
   # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
   
-  if(!dir.exists(megafolder)){
-    dir.create(megafolder)
-  }
-  
-  cat("\nMega-analysis using standardized expression values.")
-  
-  # standardized gene expression values per study (mean = 0, sd = 1)
-  collapse = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"))
-  collapse$FACTOR_age = as.numeric(sub("\\+","",collapse$FACTOR_age))
-  collapse = collapse[grep("CTL|AD",collapse$FACTOR_dx),]
-  collapse$FACTOR_dx = factor(collapse$FACTOR_dx, levels = c("CTL","AD"))
-  collapse = as.data.frame(collapse)
-  ## eths to white/nonwhite
-  collapse$FACTOR_ethnicity[collapse$FACTOR_ethnicity == ""] = NA
-  foo = unique(collapse$FACTOR_ethnicity)
-  foo = foo[!grepl("white",foo)]
-  foo = foo[!is.na(foo)]
-  collapse$FACTOR_ethnicity[collapse$FACTOR_ethnicity %in% foo] = "nonwhite"
-  collapse$FACTOR_ethnicity = factor(collapse$FACTOR_ethnicity,levels=c("nonwhite","white"))
-  
-  study_id = as.character(unique(collapse$FACTOR_studyID))
-  
-  datScaled = collapse  ##it's already scaled, ain't it?
-  # datScaled = list()
-  # for(x in 1:length(study_id)){ ## TODO is this... redoing the scaling?
-  #   
-  #   datExpr = collapse[collapse$FACTOR_studyID %in% study_id[[x]], ]
-  #   
-  #   datGenes = datExpr[,!grepl("FACTOR_", colnames(datExpr))]
-  #   datGenes = datGenes[,!colSums(is.na(datGenes)) > 0]
-  #   
-  #   # variance checker
-  #   varcheck = apply(datGenes, 2, sd)
-  #   lowvariance = varcheck[varcheck < 1e-02]
-  #   
-  #   datGenes = datGenes[,!colnames(datGenes) %in% names(lowvariance),]
-  #   
-  #   datGenes = scale(datGenes, scale = T, center = T)
-  #   
-  #   datScaled[[x]] = data.frame(datExpr[,grepl("FACTOR_", colnames(datExpr))], datGenes)
-  #   
-  # }
-  # datScaled = ldply(datScaled)
-  # ## TODO just ad/ctl plox
-  # datScaled = datScaled[datScaled$FACTOR_dx %in% c("AD","CTL"),]
-  # dim(datScaled)
-  
-  # SVA with z-standardized data set
-  exprs = datScaled[,!colSums(is.na(datScaled)) > 0]
-  exprs = exprs[,!grepl("FACTOR_", colnames(exprs))]
-  dim(exprs)
-  
-  # Identify SVA
-  mod = model.matrix(~FACTOR_dx + FACTOR_studyID, data = datScaled) # model with known factors and covariates
-  mod0 = model.matrix(~1,data=datScaled[as.numeric(rownames(mod)), ]) # intercept only model
-  
-  # # exprs = exprs[as.numeric(rownames(mod)), ]
-  # exprs = exprs(ExpressionSet(t(exprs)))
-  # 
-  # n.sv = num.sv(exprs, mod ,method="leek") # Leek method for asymptotic modeling approach
-  # message("\nNumber of Surrogate variables detected: ", n.sv)
-  
-  foo = exprs(ExpressionSet(t(exprs)))
-  n.sv = max(num.sv(foo,mod,method='leek'),3) ## leek is sometimes producing no SVs.
-  svobj = sva(foo,mod, n.sv = n.sv)
-  svdf = data.frame(NULL)
-  svdf = as.data.frame(svobj$sv)
-  colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
-  
-  # ADD SURROGATE VARIABLES TO EXPRESSION SET
-  datAll = data.frame(svdf, datScaled)
-  
-  datAll$FACTOR_dx = relevel(as.factor(datAll$FACTOR_dx),ref="CTL")
-  
-  ## linear regression models
-  frm = " ~ FACTOR_dx + FACTOR_studyID + SV1"
-  cat("\nBeginning linear regression models.\nFormula:",frm,"\n")
-  
-  genes = names(collapse)[names(collapse) %in% colnames(datAll)]
-  genes = genes[-grep("FACTOR_",genes)]
-  
-  lme_results=list()
-  lme_failure=character()
-  for(x in 1:length(genes)){
-    cat("\rLinear model:", x, "of", length(genes))
-    # formula = formula(paste(genes[[x]], " ~ FACTOR_dx + SV1 + (1|FACTOR_studyID)"))
-    formula = formula(paste(genes[[x]], frm))
-    lmeFit = NULL
-    lmeFit = try(lm(formula, data = datAll))
-    
-    # CHECK IF LM FIT, SKIP IF FAILED
-    if(class(lmeFit) == 'try-error'){
-      cat("  lm() failure for",genes[[x]],"\n")
-      lme_failure = c(lme_failure,genes[[x]])
-      next
-    }
-    
-    Coefs = broom::tidy(summary(lmeFit)$coefficients)
-    Coefs = Coefs[grepl("FACTOR_dxAD", Coefs$.rownames), ]
-    Coefs = data.frame(GeneSymbol = genes[[x]], Coefs)
-    lme_results[[x]] = Coefs
-  }
-  lme_results = ldply(lme_results)
-  colnames(lme_results)[grepl("Pr..", colnames(lme_results))] = "P"
-  lme_results$FDR = p.adjust(lme_results$P, 'fdr')
-  lme_results$BONF = p.adjust(lme_results$P, 'bonferroni')
-  lme_results = lme_results[order(lme_results$P, decreasing = F), ]
-  
-  write(lme_failure,paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Failed_Genes.txt",sep=""))
-  fwrite(lme_results,paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Results.txt",sep=""))
-  
-  head(lme_results)
-  
-  psize = -log10(lme_results$P)
-  psize = (psize - min(psize))/(max(psize) - min(psize)) + 0.5
-  col = rep("lightgrey", nrow(lme_results))
-  col[which(abs(lme_results$Estimate) > 0.2)] = "dodgerblue3"
-  col[which(lme_results$FDR < .05)] = "orange"
-  col[which(lme_results$BONF < .05)] = "firebrick3"
-  
-  lme_results$vLabel = NA
-  for(foo in 1:length(lme_results$vLabel)){
-    if(abs(lme_results$Estimate[foo]) > .7 | lme_results$BONF[foo] < 1e-7){
-      lme_results$vLabel[foo] = as.character(lme_results$GeneSymbol[foo])
-    }
-  }
-  lme_results$vLabel = gsub("[.]", "-", lme_results$vLabel)
-  
-  signCounts = table(sign(lme_results$Estimate))
-  paste("n = ", signCounts, sep = "")
-  
-  png(paste0("./QCplots/",tissue,"_qcADMCI_mega_volcano.png"),res=300,units="in",height = 5, width = 6)
-  print(
-    ggplot(lme_results, aes(x = Estimate, y = -log10(lme_results$P))) + 
-    geom_point(size = psize, col = col) + 
-    theme_classic() + 
-    theme(axis.text = element_text(size = 12), axis.title = element_text(size = 12), panel.border = element_rect(fill=NA,size = 1.5)) +
-    geom_hline(yintercept = -log10(.05), col = 'orange', linetype = "dashed") + 
-    xlab( expression(paste("log"[2]," fold-change in gene expression"))) +
-    ylab( expression(paste("-log"[10],"(P-value)"))) + 
-    geom_hline(aes(yintercept = -log10(.05/nrow(lme_results))), col = 'red', lwd = 0.25,linetype=1) +
-    geom_vline(aes(xintercept = 0), col = 'black',lwd=0.3, linetype=2) +
-    ggrepel::geom_text_repel(aes(label = lme_results$vLabel), size = 3, segment.size = 0.2, segment.colour = "grey", fontface = 3)
-  )
-  dev.off()
-  
-  
-  # qq-plot
-  
-  # association p-values
-  assoc = data.frame(P = lme_results$P, source='DGE Mega-analysis')
-  # This is not the solution.
-  # assoc = data.frame(P = lme_results$BONF, source='DGE Mega-analysis')
-  observed = assoc$P
-  chisq1 <- qchisq(1-observed, 1)
-  observed <- sort(assoc$P)
-  lobs <- -(log10(as.numeric(observed)))
-  
-  expected <- c(1:length(observed))
-  lexp <- -(log10(expected / (length(expected)+1)))
-  
-  medianchi = median(chisq1,na.rm=T)
-  lambdaout = medianchi/.454
-  
-  assoc = assoc[order(assoc$P, decreasing = F), ]
-  assoc$lobs = lobs
-  assoc$lexp = lexp
-  
-  ci = .95
-  N = length(assoc$P)
-  observed = -log10(sort(assoc$P))
-  expected = -log10(1:N / N)
-  clower   = -log10(qbeta(ci,     1:N, N - 1:N + 1))
-  cupper   = -log10(qbeta(1 - ci, 1:N, N - 1:N + 1))
-  assoc$clower = clower
-  assoc$cupper = cupper
-  
-  mclab = substitute(paste("Median ", chi^2, "=", MC, ", ", lambda , "=", LD), list(MC=format(medianchi, digits = 3), LD=format(lambdaout,digits=3)))
-  
-  qplot = ggplot(assoc, aes(x = lexp, y = lobs)) +
-    geom_point(colour="black", fill= 'dodgerblue', shape = 21, size = 2, stroke = 0.3) + 
-    geom_abline(slope = 1, intercept = 0, col = 'black', lwd = 0.3) +
-    theme_classic() + 
-    ylab(expression(paste("Observed -log"[10]," P-value"))) +
-    xlab(expression(paste("Expected -log"[10]," P-value"))) +
-    scale_fill_discrete(NULL) +
-    geom_line(aes(x = lexp, y = clower), colour ='grey' ,lwd = 0.75) +
-    geom_line(aes(x = lexp, y = cupper), colour = 'grey', lwd = 0.75) +
-    geom_ribbon(aes(x = lexp, ymin = clower, ymax = cupper), fill="grey", alpha=0.2) +
-    ggtitle(mclab)  +
-    theme(axis.text = element_text(size = 15), axis.title = element_text(size = 15))
-  
-  # qplot
-  
-  png(paste0("./QCplots/",tissue,"_qcADMCI_mega_qqplot.png"),res=300,units="in",height=5,width=5)
-  print(qplot)
-  dev.off()
-  
-  gc()
-  
-  ## ******************************************************
-  ##   now compare!
-  ## ******************************************************
-  
-  cat("\nPerforming correlation test between meta- and mega-analysis.")
-  
-  meta_results = fread(paste(metafolder,"/",tissue,"_freeze_qcADMCI_meta_Nmin4_LeaveOneOut.txt",sep=""))
-  mega_results = fread(paste(megafolder,"/",tissue,"_ADMCI_Linear_Model_Results.txt",sep=""))
-  
-  meta_results$t.value = meta_results$Log2FC / meta_results$SE
-  names(meta_results)[which(names(meta_results) == ".id")] = "GeneSymbol"
-  
-  rownames(meta_results) = meta_results$GeneSymbol
-  rownames(mega_results) = mega_results$GeneSymbol
-  
-  meta_results = meta_results[order(meta_results$GeneSymbol),]
-  mega_results = mega_results[order(mega_results$GeneSymbol),]
-  
-  sink(paste0("./",tissue,"_ADMCI_metamega_trimmed_genes.txt"))
-    cat("\nMeta genes not in mega:",meta_results$GeneSymbol[!(meta_results$GeneSymbol %in% mega_results$GeneSymbol)])
-    cat("\nMega genes not in meta:",mega_results$GeneSymbol[!(mega_results$GeneSymbol %in% meta_results$GeneSymbol)])
-  sink()
-  
-  meta_trim = meta_results[(meta_results$GeneSymbol %in% mega_results$GeneSymbol),]
-  mega_trim = mega_results[(mega_results$GeneSymbol %in% meta_results$GeneSymbol),]
-  
-  cors = cor.test(meta_trim$t.value,mega_trim$t.value)
-  print(cors)
-  
-  core = cor.test(meta_trim$Log2FC,mega_trim$Estimate)
-  print(core)
-  
-  corp = cor.test(-log10(meta_trim$P),-log10(mega_trim$P))
-  print(corp)
-  
-  sink(paste0(file="./",tissue,"_ADMCI_metamega_correlations.txt"))
-    print(cors)
-    print(core)
-    print(corp)
-  sink()
+  ## no mega-analysis after consulting with SG and JH
 }
 
 

@@ -119,9 +119,9 @@ for(i in 1:nrow(covs)){
   covs$FACTOR_dx[i] = case_when(
     dx == 1 ~ "CTL",
     dx == 2 ~ "MCI",
-    dx == 3 ~ "MCI+",
+    dx == 3 ~ "MCI+", ## plus some other neuro problem
     dx == 4 ~ "AD",
-    dx == 5 ~ "AD+",
+    dx == 5 ~ "AD+", ## plust some other neuro problem
     dx == 6 ~ "Other",
   )
 }

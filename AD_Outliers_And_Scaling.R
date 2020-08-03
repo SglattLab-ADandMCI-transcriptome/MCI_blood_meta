@@ -6,7 +6,8 @@ setwd("~/PsychGENe/brain/")
 # Update gene symbols for AD gene expression data sets
 qcFolder = "./QCplots/"
 
-tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole blood")
+tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole_blood")
+# tissues = "whole_blood"
 
 require(data.table)
 require(plyr)
@@ -52,6 +53,7 @@ rawall = fread("normalized_data/ADMCI_merged.txt", header = T, stringsAsFactors 
 foo = rawall$FACTOR_ethnicity
 foo[foo == "Caucasian"] = "white"
 foo[foo == "caucasian"] = "white"
+foo[foo == "White"] = "white"
 foo[foo == "Japanese"] = "asian"
 rawall$FACTOR_ethnicity = factor(foo)
 print(table(rawall$FACTOR_ethnicity))
@@ -77,6 +79,8 @@ foo[foo == "CR"] = "cerebellum"
 foo[foo == "CBE"] = "cerebellum"
 foo[foo == "CER"] = "cerebellum"
 foo[foo == "TCX"] = "temporal_cortex"
+foo[foo == "Whole blood"] = "whole_blood"
+foo[foo == "whole blood"] = "whole_blood"
 rawall$FACTOR_tissue = factor(foo)
 print(table(rawall$FACTOR_tissue))
 
