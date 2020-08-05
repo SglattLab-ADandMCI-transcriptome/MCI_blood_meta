@@ -30,7 +30,7 @@ covs = data.frame(Sample_ID = rawcovs@phenoData@data$geo_accession,
                   FACTOR_dx = rawcovs@phenoData@data$title,
                   FACTOR_age = rawcovs@phenoData@data$`age(years):ch1`,
                   FACTOR_sex = rawcovs@phenoData@data$`gender:ch1`,
-                  FACTOR_ethnicity = "unknown")
+                  FACTOR_race = "unknown")
 
 covs$FACTOR_dx = unlist(lapply(strsplit(as.character(covs$FACTOR_dx)," "), `[[`,1))
 covs$FACTOR_dx[covs$FACTOR_dx == "Control"] = "CTL"

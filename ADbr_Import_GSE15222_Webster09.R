@@ -38,7 +38,7 @@ covs = data.frame(Sample_ID = data@phenoData@data$geo_accession,
                   FACTOR_dx = data@phenoData@data$source_name_ch1,
                   FACTOR_age = data@phenoData@data$characteristics_ch1,
                   FACTOR_sex = data@phenoData@data$characteristics_ch1,
-                  FACTOR_ethnicity = "Caucasian")
+                  FACTOR_race = "Caucasian")
 
 tissues = factor(levels = c(1:4))
 for(i in 1:nrow(rawcovs)){

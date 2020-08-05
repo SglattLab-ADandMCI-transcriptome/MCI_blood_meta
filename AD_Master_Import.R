@@ -50,7 +50,7 @@ for(script in scripts){
   source(script)  ## output in "Exprs" study name in "studyname" covariates in "covs"
   ## TODO (arcsinh or log2) or RMA, quantile normalized
   ## PROBID as column 1, other column names as subjects
-  ## names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
+  ## names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
   
   # Boxplot of expression
   ## TODO consider ordering and color coding or labeling by tissue

@@ -71,7 +71,7 @@ covs = data.frame(Sample_ID = c(CBEcovs$IID,TCXcovs$IID),
                   FACTOR_dx = c(CBEcovs$Dxn,TCXcovs$Dxn),
                   FACTOR_age = c(CBEcovs$Age,TCXcovs$Age),
                   FACTOR_sex = c(CBEcovs$Sex,TCXcovs$Sex),
-                  FACTOR_ethnicity = "unknown")
+                  FACTOR_race = "unknown")
 
 ## Diagnosis (AD=1, non-AD = 0)
 covs$FACTOR_dx[covs$FACTOR_dx == 0] = "CTL"

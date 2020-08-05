@@ -50,13 +50,13 @@ cat("\nReading file, scaling, separating tissues, and updating gene symbols.\n")
 rawall = fread("normalized_data/ADMCI_merged.txt", header = T, stringsAsFactors = F, data.table = F)
 
 ## ethnicities cleanup
-foo = rawall$FACTOR_ethnicity
+foo = rawall$FACTOR_race
 foo[foo == "Caucasian"] = "white"
 foo[foo == "caucasian"] = "white"
 foo[foo == "White"] = "white"
 foo[foo == "Japanese"] = "asian"
-rawall$FACTOR_ethnicity = factor(foo)
-print(table(rawall$FACTOR_ethnicity))
+rawall$FACTOR_race = factor(foo)
+print(table(rawall$FACTOR_race))
 
 ## sex cleanup
 foo = rawall$FACTOR_sex

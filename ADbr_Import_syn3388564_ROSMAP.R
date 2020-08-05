@@ -83,7 +83,7 @@ covs = data.frame(Sample_ID = names(Exprs)[-1],
                   FACTOR_dx = NA,
                   FACTOR_age = NA,
                   FACTOR_sex = NA,
-                  FACTOR_ethnicity = NA)
+                  FACTOR_race = NA)
 
 old = 0
 for(i in 1:nrow(covs)){
@@ -149,7 +149,7 @@ wesp = 0
 for(i in 1:nrow(covs)){
   ethnicity = rawcovs$race[which(rawcovs$individualID == covs$Sample_ID[i])]
   hispanic = rawcovs$spanish[which(rawcovs$individualID == covs$Sample_ID[i])]
-  covs$FACTOR_ethnicity[i] = case_when(
+  covs$FACTOR_race[i] = case_when(
     ethnicity == 1 ~ "caucasian",
     ethnicity == 2 ~ "black",
     ethnicity == 3 ~ "nativeamerican",

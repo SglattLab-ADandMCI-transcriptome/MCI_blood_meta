@@ -48,7 +48,7 @@ covs = data.frame(Sample_ID = c(CBEcovs$SampleID,TCXcovs$ID),
                   FACTOR_dx = c(CBEcovs$Diagnosis,TCXcovs$Diagnosis),
                   FACTOR_age = c(CBEcovs$AgeAtDeath,TCXcovs$AgeAtDeath),
                   FACTOR_sex = c(CBEcovs$Sex,TCXcovs$Gender),
-                  FACTOR_ethnicity = "unknown")
+                  FACTOR_race = "unknown")
 
 covs$FACTOR_dx = factor(covs$FACTOR_dx)
 levels(covs$FACTOR_dx) = c("AD","CTL","Pathologic Aging","PSP")

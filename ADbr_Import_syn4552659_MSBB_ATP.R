@@ -19,7 +19,7 @@ for(i in 1:length(keys$Sample_ID)){
   cat(i,"\r")
   keys$FACTOR_sex[i] = rawcovs$Sex[which(rawcovs$individualIdentifier == keys$individualIdentifier[i])]
   keys$FACTOR_age[i] = rawcovs$Age[which(rawcovs$individualIdentifier == keys$individualIdentifier[i])]
-  keys$FACTOR_ethnicity[i] = rawcovs$Race[which(rawcovs$individualIdentifier == keys$individualIdentifier[i])]
+  keys$FACTOR_race[i] = rawcovs$Race[which(rawcovs$individualIdentifier == keys$individualIdentifier[i])]
   keys$FACTOR_dx[i] = rawcovs$CDR[which(rawcovs$individualIdentifier == keys$individualIdentifier[i])]
 }
 
@@ -28,19 +28,19 @@ covs = data.frame(Sample_ID = keys$fileName,
                   FACTOR_dx = keys$FACTOR_dx,
                   FACTOR_age = keys$FACTOR_age,
                   FACTOR_sex = keys$FACTOR_sex,
-                  FACTOR_ethnicity = keys$FACTOR_ethnicity)
+                  FACTOR_race = keys$FACTOR_race)
 
 print(covs$FACTOR_dx[1:20])
 covs$FACTOR_dx[covs$FACTOR_dx >= 1] = "AD"
 covs$FACTOR_dx[covs$FACTOR_dx < 1] = "CTL"
 print(covs$FACTOR_dx[1:20])
 
-print(covs$FACTOR_ethnicity[1:20])
-covs$FACTOR_ethnicity = factor(covs$FACTOR_ethnicity)
+print(covs$FACTOR_race[1:20])
+covs$FACTOR_race = factor(covs$FACTOR_race)
 ## I would suggest we leave as White, Black, Asian, and then anyone coded as
 ## Hispanic recode as missing. -SG
-levels(covs$FACTOR_ethnicity) = c("asian","black","other","white")
-print(covs$FACTOR_ethnicity[1:20])
+levels(covs$FACTOR_race) = c("asian","black","other","white")
+print(covs$FACTOR_race[1:20])
 print(covs$FACTOR_sex[1:20])
 covs$FACTOR_sex = factor(covs$FACTOR_sex)
 levels(covs$FACTOR_sex) = c("female","male")

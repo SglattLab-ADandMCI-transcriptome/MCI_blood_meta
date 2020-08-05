@@ -58,8 +58,8 @@ Exprs$PROBEID = probes
 ## note 2 samples are lost because we do not have the raw form
 covs = fread(paste0(rawlocation,"blood/GSE85426/E-GEOD-85426.sdrf.txt"),data.table=F)
 covs = covs[,c(1,33,13,5,1,10)] #ethnicity missing
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
-covs$FACTOR_ethnicity = NA
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
+covs$FACTOR_race = NA
 covs$FACTOR_dx[grepl("control",covs$FACTOR_dx)] = "CTL"
 covs$FACTOR_dx[grepl("Alzheimer",covs$FACTOR_dx)] = "AD"
 covs$Sample_ID = gsub(" 1","",covs$Sample_ID)

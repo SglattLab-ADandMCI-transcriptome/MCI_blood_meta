@@ -52,7 +52,7 @@ covs = data.frame(Sample_ID = rawcovs@phenoData@data$geo_accession,
                   FACTOR_dx = rawcovs@phenoData@data$title,
                   FACTOR_age = rawcovs@phenoData@data$`age:ch1`,
                   FACTOR_sex = rawcovs@phenoData@data$`Sex:ch1`,
-                  FACTOR_ethnicity = "Japanese")
+                  FACTOR_race = "Japanese")
 
 print(covs$FACTOR_dx)
 dx = as.character(covs$FACTOR_dx)

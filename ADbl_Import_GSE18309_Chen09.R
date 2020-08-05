@@ -47,10 +47,10 @@ for(foo in 1:q){
 ## covariates
 covs = fread(paste0(rawlocation,"blood/GSE18309/E-GEOD-18309.sdrf.txt"),data.table=F)
 covs = covs[,c(1,7,1,1,4,6)] #age and gender missing
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
 covs$FACTOR_age = NA
 covs$FACTOR_sex = NA
-covs$FACTOR_ethnicity = "asian"
+covs$FACTOR_race = "asian"
 covs$FACTOR_tissue = "whole blood"
 covs$FACTOR_dx[covs$FACTOR_dx=="normal"] = "CTL"
 covs$FACTOR_dx[covs$FACTOR_dx=="Alzheimers disease"] = "AD"

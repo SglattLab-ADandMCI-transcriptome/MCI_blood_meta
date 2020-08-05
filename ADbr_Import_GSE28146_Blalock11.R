@@ -38,7 +38,7 @@ covs = data.frame(Sample_ID = rawcovs@phenoData@data$geo_accession,
                   FACTOR_dx = rawcovs@phenoData@data$characteristics_ch1.2,
                   FACTOR_age = rawcovs@phenoData@data$characteristics_ch1.1,
                   FACTOR_sex = rawcovs@phenoData@data$characteristics_ch1,
-                  FACTOR_ethnicity = "unknown")
+                  FACTOR_race = "unknown")
 
 covs$FACTOR_age = unlist(lapply(strsplit(as.character(covs$FACTOR_age)," "), `[[`,2))
 print(covs$FACTOR_dx)

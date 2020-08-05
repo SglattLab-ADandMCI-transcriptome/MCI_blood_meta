@@ -16,13 +16,13 @@ tissues = covtis
 for(tissue in tissues){
   message("Ethnicities: ",tissue)
   datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"), data.table=F, stringsAsFactors = F)
-  print(table(datExprCovs$FACTOR_ethnicity))
+  print(table(datExprCovs$FACTOR_race))
   for(study in unique(datExprCovs$FACTOR_studyID)){
     message(study)
-    print(table(datExprCovs$FACTOR_ethnicity[datExprCovs$FACTOR_studyID == study]))
+    print(table(datExprCovs$FACTOR_race[datExprCovs$FACTOR_studyID == study]))
   }
 }
 
 
 
-# datExprCovs$FACTOR_ethnicity[grep("unknown|other",datExprCovs$FACTOR_ethnicity)] = NA
+# datExprCovs$FACTOR_race[grep("unknown|other",datExprCovs$FACTOR_race)] = NA

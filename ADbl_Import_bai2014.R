@@ -44,14 +44,14 @@ for(foo in 1:q){
 
 covs = read.xlsx(paste0(rawlocation,"blood/bai2014/NIHMS562483-supplement-Supplemental_Table1.xlsx"), startRow = 13)
 covs = covs[,c(1,13,4,6,3,1)]
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
 covs$FACTOR_tissue = "whole blood"
 covs$FACTOR_dx[covs$FACTOR_dx=="NL"] = "CTL"
 covs$FACTOR_dx[covs$FACTOR_dx=="AD"] = "AD"
 covs$FACTOR_sex[covs$FACTOR_sex=="1"] = "male"
 covs$FACTOR_sex[covs$FACTOR_sex=="2"] = "female"
-covs$FACTOR_ethnicity[covs$FACTOR_ethnicity=="W"] = "white"
-covs$FACTOR_ethnicity[covs$FACTOR_ethnicity=="O"] = "other"
+covs$FACTOR_race[covs$FACTOR_race=="W"] = "white"
+covs$FACTOR_race[covs$FACTOR_race=="O"] = "other"
 covs$Sample_ID = gsub("_HG-U133_Plus_2.CEL.pimg","",covs$Sample_ID)
 covs$Sample_ID = gsub("-",".",covs$Sample_ID)
 print(head(covs))

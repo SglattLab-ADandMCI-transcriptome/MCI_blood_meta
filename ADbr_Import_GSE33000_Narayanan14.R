@@ -33,7 +33,7 @@ covs = data.frame(Sample_ID = rawcovs$geo_accession,
                   FACTOR_dx = rawcovs$`disease status:ch2`,
                   FACTOR_age = rawcovs$`age:ch2`,
                   FACTOR_sex = rawcovs$`gender:ch2`,
-                  FACTOR_ethnicity = "caucasian")
+                  FACTOR_race = "caucasian")
 
 covs$FACTOR_dx = factor(covs$FACTOR_dx)
 levels(covs$FACTOR_dx) = c("AD","HD","CTL")

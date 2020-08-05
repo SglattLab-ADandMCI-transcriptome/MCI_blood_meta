@@ -130,7 +130,7 @@ foo[grep("Alaskan",foo)] = "nativeamerican"
 eths = tolower(foo)
 
 covs = data.frame(IDs, Dx,genders,ages,eths,tissue = rep("whole blood",times=nrow(genders)))
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
 
 
 foo = as.data.frame(t(sapply(adni.norm, as.numeric)))

@@ -37,7 +37,7 @@ covs = data.frame(Sample_ID = rawcovs@phenoData@data$geo_accession,
                   FACTOR_dx = "temp",
                   FACTOR_age = rawcovs@phenoData@data$`age (yrs):ch1`,
                   FACTOR_sex = rawcovs@phenoData@data$`gender:ch1`,
-                  FACTOR_ethnicity = "unknown")
+                  FACTOR_race = "unknown")
 
 dx = paste(rawcovs@phenoData@data$`individual:ch1`,rawcovs@phenoData@data$source_name_ch1)
 dxAD = grepl("(, AA)|(_AD)",dx)

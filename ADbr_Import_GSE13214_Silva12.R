@@ -43,7 +43,7 @@ covs = data.frame(Sample_ID = names(data@gsms),
                   FACTOR_dx = "other",
                   FACTOR_age = "unknown",
                   FACTOR_sex = "unknown",
-                  FACTOR_ethnicity = "unknown",
+                  FACTOR_race = "unknown",
                   stringsAsFactors = F)
 
 covs$FACTOR_tissue[grep("hippocampus",rawcovs)] = "HIP"

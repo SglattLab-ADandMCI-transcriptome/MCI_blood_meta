@@ -42,7 +42,7 @@ covs = data.frame(Sample_ID = rawcovs$`GEO Accession:`,
                   FACTOR_dx = rawcovs$`Disease State:`,
                   FACTOR_age = rawcovs$`Age:`,
                   FACTOR_sex = rawcovs$`Sex:`,
-                  FACTOR_ethnicity = rawcovs$`Ethnicity:`)
+                  FACTOR_race = rawcovs$`Ethnicity:`)
 
 covs$FACTOR_age = unlist(lapply(strsplit(as.character(covs$FACTOR_age)," "), `[[`,1))
 print(covs$FACTOR_tissue)
@@ -53,10 +53,10 @@ print(covs$FACTOR_dx)
 covs$FACTOR_dx = factor(covs$FACTOR_dx)
 levels(covs$FACTOR_dx) = c("AD","CTL")
 print(covs$FACTOR_dx)
-print(covs$FACTOR_ethnicity)
-covs$FACTOR_ethnicity = factor(covs$FACTOR_ethnicity)
-levels(covs$FACTOR_ethnicity) = c("caucasian","unknown")
-print(covs$FACTOR_ethnicity)
+print(covs$FACTOR_race)
+covs$FACTOR_race = factor(covs$FACTOR_race)
+levels(covs$FACTOR_race) = c("caucasian","unknown")
+print(covs$FACTOR_race)
 print(head(covs))
 
 # rm(RMA)

@@ -42,10 +42,10 @@ names(Exprs) = gsub("X","",names(Exprs))
 ## covariates
 covs = fread(paste0(rawlocation,"blood/GSE63060/E-GEOD-63060.sdrf.txt"),data.table=F)
 covs = covs[,c(4,17,14,5,6,11)]
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
-covs$FACTOR_ethnicity[grepl("Western European",covs$FACTOR_ethnicity)] = "white"
-covs$FACTOR_ethnicity[grepl("Other Caucasian",covs$FACTOR_ethnicity)] = "white"
-covs$FACTOR_ethnicity[grepl("Unknown",covs$FACTOR_ethnicity)] = "unknown"
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
+covs$FACTOR_race[grepl("Western European",covs$FACTOR_race)] = "white"
+covs$FACTOR_race[grepl("Other Caucasian",covs$FACTOR_race)] = "white"
+covs$FACTOR_race[grepl("Unknown",covs$FACTOR_race)] = "unknown"
 covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole blood"
 
 

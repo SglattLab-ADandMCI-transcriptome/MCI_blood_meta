@@ -41,11 +41,11 @@ names(Exprs) = c("PROBEID",toupper(foo$id))
 # covs = fread(paste0(rawlocation,"blood/E-MTAB-6094/E-MTAB-6094.sdrf.txt"),data.table = F)
 covs = fread(paste0(rawlocation,"blood/E-MTAB-6094/extractedcovs.txt"),data.table=F)
 covs = covs[,c(1,1,3,2,7,1)]
-names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_ethnicity","FACTOR_tissue")
+names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
 covs$FACTOR_dx = gsub("P.*","AD",covs$FACTOR_dx)
 covs$FACTOR_dx = gsub("C.*","CTL",covs$FACTOR_dx)
 ## https://en.wikipedia.org/wiki/Pardo_Brazilians
-covs$FACTOR_ethnicity = gsub("brown","other",covs$FACTOR_ethnicity)
+covs$FACTOR_race = gsub("brown","other",covs$FACTOR_race)
 covs$FACTOR_sex[covs$FACTOR_sex == "F"] = "female"
 covs$FACTOR_sex[covs$FACTOR_sex == "M"] = "male"
 covs$FACTOR_tissue = "whole blood"
