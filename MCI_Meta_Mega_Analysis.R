@@ -8,11 +8,9 @@ controllabel = "CTL"
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
-## TODO refactor some script names and outputs .. "ADMCI" to the groups being compared?
-## or just "analysislabel" variable here at the top
-## and case and control variables
-
 ## TODO figure out something other than tidy.matrix >:(
+
+## TODO SVs and inclusion of them, violin and all
 
 # load these packages (install if needed)
 require(plyr)
@@ -56,7 +54,7 @@ if(all(dattis == covtis, covtis == scaletis)){
   stop("Tissue files are... not right.")
 }
 
-## TODO autofigure criteria for dropping a tissue.  at lest 3 studies
+## this MCI study is only going to be on whole blood.
 tissues = "whole_blood"
 
 for(tissue in tissues){
@@ -135,19 +133,19 @@ for(tissue in tissues){
     if(length(rowmis) > 0){x = x[-rowmis]; y = y[-rowmis]}
     
     # Model matrix (basic)
-    PredListNames = paste('FACTOR_', c("dx", "sex", "age","ethnicity"), collapse= "|", sep="")
+    PredListNames = paste('FACTOR_', c("dx", "sex", "age","race"), collapse= "|", sep="")
     predictors = x[,grep(PredListNames, colnames(x))]
     predictors = data.frame(predictors)
     
     # set level of disease groups 
     predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
-    predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = 'CTL')
+    predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = controllabel)
     
     counts = lapply(predictors,unique)
     count_class = unlist(lapply(counts,length))
     count_class = count_class[count_class <= 1,drop=F]
     
-    if(length(count_class) > 0){predictors = predictors[,!(colnames(predictors) %in% names(count_class))]}
+    if(length(count_class) > 0){predictors = predictors[,!(colnames(predictors) %in% names(count_class)),drop=F]}
     
     N = table(predictors$FACTOR_dx)
     Nca = N[[2]]
@@ -169,10 +167,10 @@ for(tissue in tissues){
 
     # final design matrix for differential expression analysis
     # predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
-    # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = 'CTL')
+    # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = controllabel)
     # design = model.matrix( ~ -1 + ., predictors)
     design = model.matrix( ~ ., predictors)
-    design = design[,!grepl("CTL", colnames(design))]
+    design = design[,!grepl(controllabel, colnames(design))]
     
     # fit the linear model (arcsinh expression as response variable)
     lmFit = lm(as.matrix(y) ~ -1 + design)
@@ -208,6 +206,7 @@ for(tissue in tissues){
   names(mergestats)[names(mergestats) %in% ".id"] = "studyID"
   mergestats$term = gsub("designFACTOR_|design", "", mergestats$term)
   
+  cat("Studies and covariates:\n")
   print(unique(mergestats$studyID))
   print(unique(mergestats$term))
   
@@ -244,7 +243,7 @@ for(tissue in tissues){
               theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
               geom_boxplot(width=0.05, outlier.shape = NA, fill = "lightgrey", col = "black")
   
-  png(file = paste("./QCplots/",tissue,"_qcsva_",analysislabel,"_MEGA_MERGESTUDY_violin.png", sep = ""),
+  png(file = paste("./QCplots/",tissue,"_qcsva_",analysislabel,"_violin.png", sep = ""),
       res = 300, units = "in", height = 8, width = 11.5)
   print(g)
   dev.off()
