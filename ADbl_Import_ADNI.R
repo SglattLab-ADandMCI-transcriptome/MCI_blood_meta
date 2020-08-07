@@ -122,9 +122,9 @@ table(eths)
 # (Other)                          :  9
 
 foo = gsub(" Not Hisp/Latino","",eths)
+foo = gsub(" Hisp/Latino","",eths)
 foo = gsub(" Unknown","",foo)
-foo[grep("Latino",foo)] = "latino"
-foo[grep("Hawaiian",foo)] = "islander"
+foo[grep("Hawaiian",foo)] = "pacificislander"
 foo[grep("than one",foo)] = "unknown"
 foo[grep("Alaskan",foo)] = "nativeamerican"
 eths = tolower(foo)

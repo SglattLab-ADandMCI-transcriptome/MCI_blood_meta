@@ -1,8 +1,6 @@
 ## Import data from GSE33000, aka Narayanan14
 ## GCH
 
-## TODO so negative in log2
-
 require(data.table)
 require(GEOquery)
 require(limma)

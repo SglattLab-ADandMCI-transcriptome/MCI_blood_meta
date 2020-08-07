@@ -1,8 +1,6 @@
 ## Import data from GSE85426 aka Samsudin16
 ## GCH
 
-## TODO ethnicity question
-
 require(data.table)
 require(GEOquery)
 require(plyr)

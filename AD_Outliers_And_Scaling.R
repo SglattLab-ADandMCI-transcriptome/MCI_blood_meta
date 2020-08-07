@@ -118,6 +118,8 @@ for(tissue in tissues){
   datAll = Reduce(function(x,y) merge(x,y,by='SYMBOL',all = TRUE), df_list)
   dim(datAll)
   
+  
+  ## TODO this is happening BEFORE outlier removal... wups
   cat("\nWriting merged numeric table to file.")
   if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
   fwrite(datAll, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
@@ -232,6 +234,8 @@ for(tissue in tissues){
     rownames(dat) = dat_sf$FACTOR_sampleID
     
     # PCA outlier detection in each study
+    ## TODO this part needs to happen above...
+    
     cat("\nPerforming PCA outlier detection.")
     variance = apply(dat, 2, function(x) var(x))
     pca = prcomp(dat[,which(variance > 0.02)], center=T,scale=T)

@@ -15,7 +15,6 @@ data = getGEO(filename = paste0(rawlocation,"GSE15222/GSE15222_series_matrix.txt
 rawcovs = fread(paste0(rawlocation,"GSE15222/samples.covar"))
 
 Exprs = exprs(data)
-## TODO i'm still not sure about this guy.
 ## These data already background subtracted
 ## asinh approximates ln(x) + a constant for "large x"
 Exprs = normalizeQuantiles(Exprs)

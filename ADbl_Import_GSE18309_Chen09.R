@@ -1,8 +1,6 @@
 ## Import data from GSE18309 aka Chen09
 ## GCH
 
-### TODO #age and gender missing decide things
-
 # require(gcrma)
 require(affy)
 

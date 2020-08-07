@@ -1,16 +1,21 @@
 setwd("~/PsychGENe/brain/")
 
-## these can be set to do AD instead
+## these can be set to do AD instead.  tissues can be c(...)
 analysislabel = "MCI"
 caselabel = "MCI"
 controllabel = "CTL"
+covariateslist = c("FACTOR_dx", "FACTOR_sex", "FACTOR_age","FACTOR_race")
+## this MCI study is only going to be on whole blood.
+tissues = c("whole_blood")
 
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
 ## TODO figure out something other than tidy.matrix >:(
 
-## TODO SVs and inclusion of them, violin and all
+## TODO SVs adjustment
+
+## TODO unknown and other race to NA?  and/or impute?
 
 # load these packages (install if needed)
 require(plyr)
@@ -49,13 +54,10 @@ covtis = sub("_SampleFactors_allstudies.txt","",covfiles)
 scaletis = sub("_ScaledWithFactors_OutliersRemoved_allstudies.txt","",scalefiles)
 
 if(all(dattis == covtis, covtis == scaletis)){
-  tissues = dattis
+  cat("Tissue files found: ", dattis,"\nTissues to be analyzed: ",tissues,"\n")
 } else {
   stop("Tissue files are... not right.")
 }
-
-## this MCI study is only going to be on whole blood.
-tissues = "whole_blood"
 
 for(tissue in tissues){
   message("Beginning analysis: ",tissue)
@@ -84,7 +86,6 @@ for(tissue in tissues){
   
   study_id = unique(datExprTissue$FACTOR_studyID)
   save_results = list()
-  wb_coef_set = list()
   for( i in 1:length(study_id)){
     
     cat("\nStudy-wise differential expression analysis:",tissue,i,"~",study_id[[i]])
@@ -94,7 +95,6 @@ for(tissue in tissues){
     Nca = N[[2]]
     Nco = N[[1]]
     cat("\n   Detected", Nca,"cases and",Nco,"controls")
-    ## TODO need info on what we are doing here if we throw anything out
     
     # IF SAMPLE SIZE IS TOO SMALL, SKIP TO NEXT STUDY
     if(Nco < 3 | Nca < 3){
@@ -133,6 +133,7 @@ for(tissue in tissues){
     if(length(rowmis) > 0){x = x[-rowmis]; y = y[-rowmis]}
     
     # Model matrix (basic)
+    ## TODO this needs to be moved to the top or detected
     PredListNames = paste('FACTOR_', c("dx", "sex", "age","race"), collapse= "|", sep="")
     predictors = x[,grep(PredListNames, colnames(x))]
     predictors = data.frame(predictors)
@@ -150,8 +151,7 @@ for(tissue in tissues){
     N = table(predictors$FACTOR_dx)
     Nca = N[[2]]
     Nco = N[[1]]
-    cat("\n   Kept", Nca,"cases and",Nco,"controls")
-    ##TODO do i need subject ids in here somewhere
+    cat("\n   Kept", Nca,"cases and",Nco,"controls\n")
     
     # remove genes with low variance
     var_filter = lapply(y, sd)
@@ -160,11 +160,37 @@ for(tissue in tissues){
     if(length(low_var_filter) > 0){y = y[,!colnames(y) %in% names(low_var_filter)]}
     
     ## Surrogate variable analysis - default method 
+    cat("Analysing for surrogate variables.\n")
     exprs = ExpressionSet(as.matrix(t(y)))
-    # predictors = predictors[,colnames(predictors) %in% c("FACTOR_Age", "FACTOR_dx", "FACTOR_Sex", "FACTOR_Batch")ALSE]
     mod = model.matrix(~ ., data= predictors) # model with known factors and covariates
     mod0 = model.matrix(~1,data=predictors) # intercept only model
 
+    
+    
+    
+    
+    
+    svobj = NULL
+    foo = exprs(exprs)
+    
+    ## sometimes 'be' will give a ridiculous number of SVs, so use up to 3
+    bar = min(c(num.sv(foo,mod, method = 'be'), 3))
+    svobj = sva(foo,mod, n.sv = bar)
+    svdf = data.frame(NULL)
+    svdf = as.data.frame(svobj$sv)
+    
+    if(ncol(svdf) > 0){
+      colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
+      predictors = data.frame(predictors, svdf)
+    }
+    
+    
+    
+    
+    
+    
+    
+    
     # final design matrix for differential expression analysis
     # predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
     # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = controllabel)
@@ -222,7 +248,6 @@ for(tissue in tissues){
          quote = F, row.names= F,sep=",")
   
   
-  ## TODO fix these graph thingies
   graph_df = mergestats
   non_sv = graph_df[!grepl("SV",graph_df$term), ]
   sv_df = graph_df[grepl("SV",graph_df$term), ]
@@ -273,9 +298,7 @@ for(tissue in tissues){
   
   # Random effect meta-analysis
   cat("\nGenewise random effect meta-analysis.\n")
-  
   ## perform meta-analysis of genes (REML model)
-  ## TODO cat or message here
   
   genes = unique(mergestats$GeneSymbol)
   genes = genes[!grepl("_", genes)]
@@ -383,6 +406,7 @@ for(tissue in tissues){
          sep = "\t",
          file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta.txt", sep=""),
          quote  = F, row.names = F)
+  ## TODO why is metafor in this what is this again
   write(names(res_save)[which(foo != "data.frame")],
         file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta_NULLmetaforRMA.txt", sep=""))
   
@@ -415,6 +439,8 @@ for(tissue in tissues){
   res_df = merge(loc_df, res_df, by="GeneSymbol",all.y=T)
   res_df = res_df[order(res_df$P, decreasing = F), ]
   
+  
+  ## TODO is this actually ... leave one out?
   fwrite(data.table(res_df), 
          sep = "\t",
          file = paste(metafolder,"/",tissue,"_freeze_qc",analysislabel,"_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
@@ -555,7 +581,7 @@ for(tissue in tissues){
   
   
   sub = sub[order(sub$CHR, sub$pos), ]
-  sub$SYMBOL = ifelse(sub$bonf < .05, sub$GeneSymbol, NA)
+  sub$SYMBOL = ifelse(sub$fdr < .05, sub$GeneSymbol, NA)
   
   png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
   # manhattan plot
@@ -575,9 +601,8 @@ for(tissue in tissues){
   ))
   dev.off()
   
-  
+  ## TODO fix volcano and manhattan plot fdr vs bonferroni, lines, and colors
   # volcano plot
-  ### TODO some logic here to control the number of genes labeled
   cat("\nConstructing volcano plot.")
   res_df$FDR = p.adjust(res_df$P, "fdr")
   res_df$BONF = p.adjust(res_df$P, "bonferroni")
@@ -588,8 +613,18 @@ for(tissue in tissues){
   col[which(res_df$FDR < .05)] = "orange"
   col[which(res_df$BONF < .05)] = "firebrick3"
   
-  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .4 | res_df$BONF < .05, res_df$GeneSymbol, NA)
+  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .4 | res_df$FDR < .05, res_df$GeneSymbol, NA)
   res_df$vLabel = gsub("[.]", "-", res_df$vLabel)
+  top_df = res_df[!is.na(res_df$vLabel),]
+  fwrite(top_df,paste(metafolder,"/",tissue,"_",analysislabel,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
+  
+  ## top 20 pval and top 20 diffs only, to reduce clutter
+  topD = order(abs(res_df$arcsinh),decreasing=T)
+  topP = order(res_df$FDR)
+  keepLabels = unique(c(topD[1:20],topP[1:20]))
+  dropLabels = c(1:nrow(res_df))
+  dropLabels = dropLabels[-which(dropLabels %in% keepLabels)]
+  res_df$vLabel[dropLabels] = NA
   
   signCounts = table(sign(res_df$arcsinh))
   paste("n = ", signCounts, sep = "")
@@ -609,10 +644,7 @@ for(tissue in tissues){
   )
   dev.off()
   
-  top_df = res_df[!is.na(res_df$vLabel),]
-  ## TODO include a thing for AD or MCI in filename
-  fwrite(top_df,paste(metafolder,"/",tissue,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
-  
+
   
   ## Forest plots
   cat("\nConstructing forest plot.")

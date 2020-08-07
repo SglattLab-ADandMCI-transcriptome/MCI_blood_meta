@@ -1,6 +1,8 @@
 ## impute missing covariates, but only if we have 70% of them
 ## GCH
 
+## TODO all of this, probably only for a few ethnicities
+
 require(smcfcs)
 require(data.table)
 

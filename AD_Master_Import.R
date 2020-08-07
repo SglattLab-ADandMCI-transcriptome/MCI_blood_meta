@@ -48,12 +48,11 @@ for(script in scripts){
   Exprs = data.frame()
   covs = data.frame()
   source(script)  ## output in "Exprs" study name in "studyname" covariates in "covs"
-  ## TODO (arcsinh or log2) or RMA, quantile normalized
+  ## quantile normalize then arcsinh
   ## PROBID as column 1, other column names as subjects
   ## names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
   
   # Boxplot of expression
-  ## TODO consider ordering and color coding or labeling by tissue
   if(ncol(Exprs) > 1){
     cat("\nGenerating plot for normalized data")
     png(paste(QCfolder,"/BOXPLOTexprnormed_",studyname,".png", sep =""), res=300,units="in",height = 6, width = 10)

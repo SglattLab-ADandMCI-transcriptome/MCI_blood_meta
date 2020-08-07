@@ -1,8 +1,6 @@
 ## Import data from GSE6613 aka Scherzer07
 ## GCH
 
-## TODO  #gender, age, ethnicity missing
-
 # require(gcrma)
 require(affy)
 
