@@ -6,8 +6,8 @@ setwd("~/PsychGENe/brain/")
 # Update gene symbols for AD gene expression data sets
 qcFolder = "./QCplots/"
 
-tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole_blood")
-# tissues = "whole_blood"
+# tissues = c("hippocampus","frontal_cortex","temporal_cortex","cerebellum","whole_blood")
+tissues = "whole_blood"
 
 require(data.table)
 require(plyr)
@@ -49,12 +49,13 @@ genes = genes[!duplicated(genes$SYMBOL), ]
 cat("\nReading file, scaling, separating tissues, and updating gene symbols.\n")
 rawall = fread("normalized_data/ADMCI_merged.txt", header = T, stringsAsFactors = F, data.table = F)
 
-## ethnicities cleanup
+## race cleanup
 foo = rawall$FACTOR_race
 foo[foo == "Caucasian"] = "white"
 foo[foo == "caucasian"] = "white"
 foo[foo == "White"] = "white"
 foo[foo == "Japanese"] = "asian"
+foo[foo == "other"] = "unknown"
 rawall$FACTOR_race = factor(foo)
 print(table(rawall$FACTOR_race))
 
@@ -86,7 +87,7 @@ print(table(rawall$FACTOR_tissue))
 
 names(rawall)[which(names(rawall) == "Sample_ID")] = "FACTOR_sampleID"
 for(tissue in tissues){
-  message("TISSUE:",tissue)
+  message("TISSUE: ",tissue)
   rawdat = rawall[which(rawall$FACTOR_tissue==tissue),]
   study_id = unique(rawdat$FACTOR_studyID)
   df_list = list()
@@ -118,13 +119,11 @@ for(tissue in tissues){
   datAll = Reduce(function(x,y) merge(x,y,by='SYMBOL',all = TRUE), df_list)
   dim(datAll)
   
-  
-  ## TODO this is happening BEFORE outlier removal... wups
-  cat("\nWriting merged numeric table to file.")
-  if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
-  fwrite(datAll, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
-  # datAll = fread("./data_for_analysis/GeneExpression_allstudies.txt")
-  
+  # cat("\nWriting merged numeric table to file.")
+  # if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
+  # fwrite(datAll, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
+  # # datAll = fread("./data_for_analysis/GeneExpression_allstudies.txt")
+  # 
   ### Bring in sample factors.
   cat("\nBringing in sample factors.")
   sf_list = list()
@@ -138,7 +137,7 @@ for(tissue in tissues){
     
     cat(colnames(datExpr),"\n")
     
-    factor_keep = paste("FACTOR_", c("dx","age","ethnicity","sex","tissue","sampleID","studyID"), sep = "")
+    factor_keep = paste("FACTOR_", c("dx","age","race","sex","tissue","sampleID","studyID"), sep = "")
     
     # datExpr$FACTOR_studyID = strsplit(basename(files[[x]]),"_")[[1]][[2]]
     
@@ -150,10 +149,10 @@ for(tissue in tissues){
   
   head(sfall)
   cat("nrow(sfall) == (ncol(datAll)-1)     ",nrow(sfall) == (ncol(datAll)-1))
-  
-  cat("\nWriting merged factor table to file.\n")
-  fwrite(sfall, file=paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),quote=F,row.names=F,sep="\t")
-  
+  # 
+  # cat("\nWriting merged factor table to file.\n")
+  # fwrite(sfall, file=paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),quote=F,row.names=F,sep="\t")
+  # 
   
   ## rebind sample factors with datAll (phenos + gene expression)
   cat("\nBinding factors with expression data.\n")
@@ -219,22 +218,23 @@ for(tissue in tissues){
   legend("bottomleft", pch = 15, ncol = 2, cex=0.75, legend = legend_col$FACTOR_studyID, col = legend_col$color, bty="n")
   dev.off()
   
-  # Standardize gene expression across samples per study (expr mean = 0, var = 1)
-  cat("\nScaling across studies to mean=0, var=1.\n")
+  # Outliers and Standardize gene expression across samples per study (expr mean = 0, var = 1)
+  cat("\nRemoving outliers and scaling across studies to mean=0, var=1.\n")
   studyid = unique(datExpr0$FACTOR_studyID)
   
   keep = list()
+  keepo = list()
+  keepf = list()
   pca_outlier_list = list()
   for(x in 1:length(studyid)){
     
-    cat("\nWorking on study:", studyid[[x]])
+    cat("\n\nWorking on study:", studyid[[x]])
     dat = datExpr0[datExpr0$FACTOR_studyID %in% studyid[[x]], ]
     dat_sf = dat[,grepl("FACTOR_",colnames(dat))]
     dat = dat[,!grepl("FACTOR_", colnames(dat))]
     rownames(dat) = dat_sf$FACTOR_sampleID
     
     # PCA outlier detection in each study
-    ## TODO this part needs to happen above...
     
     cat("\nPerforming PCA outlier detection.")
     variance = apply(dat, 2, function(x) var(x))
@@ -284,11 +284,14 @@ for(tissue in tissues){
       dat_sf = dat_sf[-pca_outlier,]
     }
     
+    ##save nonscaled data
+    keepo[[x]] = data.frame(FACTOR_sampleID = dat_sf$FACTOR_sampleID, dat)
+    keepf[[x]] = data.frame(dat_sf)
+    
     # scale expression
-    cat("\nScaling.\n")
+    cat("\nScaling.")
     dat = dat[,colSums(is.na(dat))/nrow(datAll) < 0.1]
     dat = scale(dat, center = T, scale = T)
-    
     
     # PCA on scaled data.
     {
@@ -325,13 +328,19 @@ for(tissue in tissues){
   }
   
   # bind all scaled expression data together
-  cat("\nBinding scaled data.")
+  cat("\nBinding data.")
   scaledDf = ldply(keep)
+  orgD = ldply(keepo)
+  facD = ldply(keepf)
   
-  # remove outliers
-  cat("\nRemoving outliers.")
-  scaledDf = scaledDf[!scaledDf$FACTOR_sampleID %in% unlist(pca_outlier_list), ]
-  # write(unlist(pca_outlier_list),"./data_for_analysis/PCA_removed_outliers.txt")
+  cat("\nWriting merged factor table to file.\n")
+  fwrite(facD, file=paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),quote=F,row.names=F,sep="\t")
+  
+  cat("\nWriting merged numeric table to file.")
+  if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
+  fwrite(orgD, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
+  
+  # notate outliers
   sink(paste0("./data_for_analysis/",tissue,"_PCA_removed_outliers.txt"))
   print(pca_outlier_list)
   sink()
