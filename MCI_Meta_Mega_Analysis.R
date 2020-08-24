@@ -67,8 +67,10 @@ for(tissue in tissues){
   datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),
                       data.table=F, stringsAsFactors = F)
   datExprCovs$FACTOR_age = as.numeric(sub("\\+","",datExprCovs$FACTOR_age))
-  genes = datExprTissue$SYMBOL
-  datExprTissue = data.frame(datExprCovs,t(datExprTissue[,-1]))
+  # genes = datExprTissue$SYMBOL
+  # datExprTissue = data.frame(datExprCovs,t(datExprTissue[,-1]))
+  genes = names(datExprTissue)[-1]
+  datExprTissue = data.frame(datExprCovs,datExprTissue[,-1])
   names(datExprTissue) = c(names(datExprCovs),genes)
   datExprTissue = datExprTissue[grep(paste0(controllabel,"|",caselabel,"$"),datExprTissue$FACTOR_dx),]
   if(sum(datExprTissue$FACTOR_dx == caselabel)==0){
@@ -169,24 +171,28 @@ for(tissue in tissues){
     
     
     
-    
+
     svobj = NULL
     foo = exprs(exprs)
-    
-    ## sometimes 'be' will give a ridiculous number of SVs, so use up to 3
-    bar = min(c(num.sv(foo,mod, method = 'be'), 3))
+
+    # bar = min(c(num.sv(foo,mod, method = 'be'), 3))
+    bar = num.sv(foo,mod,method='be')
+    # bar = num.sv(foo,mod,method='leek')
+    cat("#SVs = ",bar,"\n")
     svobj = sva(foo,mod, n.sv = bar)
-    svdf = data.frame(NULL)
     svdf = as.data.frame(svobj$sv)
-    
+
+    ## include only the first 3
+    baz = min(bar,3)
     if(ncol(svdf) > 0){
+      svdf = svdf[,1:baz,drop=F]
       colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
       predictors = data.frame(predictors, svdf)
     }
-    
-    
-    
-    
+
+
+
+
     
     
     
@@ -387,10 +393,10 @@ for(tissue in tissues){
                      HetP = res$QEp,
                      study_kept = paste(sub_combn$studyID, collapse =  ", ", sep = ""))
     
-    ##reduce Nstudy RE both ANM batches
-    if(length(grep("AddNeuroMed",sub_combn$studyID)) > 1){
-      res$Nstudy = res$Nstudy - 1
-    }
+    # ##reduce Nstudy RE both ANM batches
+    # if(length(grep("AddNeuroMed",sub_combn$studyID)) > 1){
+    #   res$Nstudy = res$Nstudy - 1
+    # }
     
     res_save[[i]] = res
     names(res_save)[i] = genes[i]
@@ -406,7 +412,6 @@ for(tissue in tissues){
          sep = "\t",
          file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta.txt", sep=""),
          quote  = F, row.names = F)
-  ## TODO why is metafor in this what is this again
   write(names(res_save)[which(foo != "data.frame")],
         file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta_NULLmetaforRMA.txt", sep=""))
   
@@ -441,6 +446,8 @@ for(tissue in tissues){
   
   
   ## TODO is this actually ... leave one out?
+  ## I don't think we're saving the loo..
+  fwrite(ldply(loo_save),file = paste0(metafolder,"/",tissue,"_loosave.txt"))
   fwrite(data.table(res_df), 
          sep = "\t",
          file = paste(metafolder,"/",tissue,"_freeze_qc",analysislabel,"_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
@@ -450,8 +457,6 @@ for(tissue in tissues){
   cat("\nConstructing qq plot.")
   # association p-values
   assoc = data.frame(P = res_df$P, source='DGE Meta-analysis')
-  # this is not the solution
-  # assoc = data.frame(P = res_df$BONF, source='DGE Meta-analysis')
   observed = assoc$P
   chisq1 <- qchisq(1-observed, 1)
   observed <- sort(assoc$P)
@@ -532,8 +537,8 @@ for(tissue in tissues){
   bp = lapply(locs, function(x) x[[2]])
   pos = data.frame(CHR=unlist(chr),BP=unlist(bp))
   pos$GeneSymbol = trim$GeneSymbol
-  pos$bonf = trim$BONF
-  pos$fdr = trim$FDR
+  pos$BONF = trim$BONF
+  pos$FDR = trim$FDR
   pos$P = trim$P
   pos$BP = gsub("[(-)]", "", pos$BP)
   pos$BP = gsub("[(+)]", "", pos$BP)
@@ -581,7 +586,7 @@ for(tissue in tissues){
   
   
   sub = sub[order(sub$CHR, sub$pos), ]
-  sub$SYMBOL = ifelse(sub$fdr < .05, sub$GeneSymbol, NA)
+  sub$SYMBOL = ifelse(sub$FDR < .05, sub$GeneSymbol, NA)
   
   png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
   # manhattan plot
@@ -609,11 +614,12 @@ for(tissue in tissues){
   psize = -log10(res_df$P)
   psize = (psize - min(psize))/(max(psize) - min(psize)) + 0.5
   col = rep("lightgrey", nrow(res_df))
-  col[which(abs(res_df$arcsinh) > 0.2)] = "dodgerblue3"
+  col[which(abs(res_df$arcsinh) > 0.1)] = "dodgerblue3"
   col[which(res_df$FDR < .05)] = "orange"
   col[which(res_df$BONF < .05)] = "firebrick3"
   
-  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .4 | res_df$FDR < .05, res_df$GeneSymbol, NA)
+  ## decide what to label and save as significant
+  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .1 | res_df$P < .05, res_df$GeneSymbol, NA)
   res_df$vLabel = gsub("[.]", "-", res_df$vLabel)
   top_df = res_df[!is.na(res_df$vLabel),]
   fwrite(top_df,paste(metafolder,"/",tissue,"_",analysislabel,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
@@ -709,9 +715,9 @@ for(tissue in tissues){
       theme( strip.text.y = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()) + 
       geom_text(aes(vjust = -1, label = results$P_label))
     
-    # png(paste("~/Google Drive/mac_storage/TWAS/bd_mega/data/brain/forestplots/RANK_",i,"_FORESTPLOT_",topgenes[[i]],".png", sep = ""),res=300,units="in",height=5,width =5.5)
+    png(paste("./forestplots/RANK_",i,"_FORESTPLOT_",topgenes[[i]],".png", sep = ""),res=300,units="in",height=5,width =5.5)
     print(g)
-    # dev.off()
+    dev.off()
     
   } else print("No top genes.")
   dev.off()

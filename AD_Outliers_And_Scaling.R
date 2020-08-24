@@ -233,6 +233,7 @@ for(tissue in tissues){
     dat_sf = dat[,grepl("FACTOR_",colnames(dat))]
     dat = dat[,!grepl("FACTOR_", colnames(dat))]
     rownames(dat) = dat_sf$FACTOR_sampleID
+    names(dat) = toupper(names(dat))
     
     # PCA outlier detection in each study
     
