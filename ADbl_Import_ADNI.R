@@ -107,25 +107,10 @@ table(eths)
 # More than one    :  7                        
 # Unknown          :  2                        
 # White            :690                        
-foo = paste(eths[,1],eths[,2])
-foo = matrix(foo,ncol=1)
-rownames(foo) = rownames(eths)
-eths = foo
-table(eths)
-# V1     
-# White Not Hisp/Latino            :675  
-# Black Not Hisp/Latino            : 29  
-# White Hisp/Latino                : 13  
-# Asian Not Hisp/Latino            : 11  
-# More than one Not Hisp/Latino    :  5  
-# Am Indian/Alaskan Not Hisp/Latino:  2  
-# (Other)                          :  9
+foo = eths[,1]
 
-foo = gsub(" Not Hisp/Latino","",eths)
-foo = gsub(" Hisp/Latino","",eths)
-foo = gsub(" Unknown","",foo)
 foo[grep("Hawaiian",foo)] = "pacificislander"
-foo[grep("than one",foo)] = "unknown"
+foo[grep("than one",foo)] = "other"
 foo[grep("Alaskan",foo)] = "nativeamerican"
 eths = tolower(foo)
 

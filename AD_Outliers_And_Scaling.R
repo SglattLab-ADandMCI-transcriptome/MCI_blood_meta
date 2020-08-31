@@ -56,6 +56,7 @@ foo[foo == "caucasian"] = "white"
 foo[foo == "White"] = "white"
 foo[foo == "Japanese"] = "asian"
 foo[foo == "other"] = "unknown"
+foo = gsub(" not","",foo)
 rawall$FACTOR_race = factor(foo)
 print(table(rawall$FACTOR_race))
 
