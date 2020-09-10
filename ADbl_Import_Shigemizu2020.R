@@ -37,11 +37,14 @@ covs$Sample_ID = newID
 newID = gsub("^","S20_",names(data)[-1])
 genes = data$gene
 Exprs = data[,-1]
+allzero = rowSums(Exprs)
+allzero = which(allzero == 0)
+Exprs = Exprs[-allzero,]
+genes = genes[-allzero]
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 names(Exprs) = newID
-Exprs = data.frame(PROBEID = genes, Exprs) ## 11734 0 genes, remove? TODO
-
+Exprs = data.frame(PROBEID = genes, Exprs) 
 
 
 ## convert to hgnc symbols

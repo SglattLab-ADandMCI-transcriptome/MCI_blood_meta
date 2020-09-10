@@ -121,7 +121,7 @@ for(tissue in tissues){
     
     # add wrong class to demographics
     if(length(wrong_class)>0){
-      x = data.table(x, y[,colnames(y) %in% names(wrong_class)]);
+      x = data.frame(x, y[,colnames(y) %in% names(wrong_class)]);
       y = y[,!colnames(y) %in% names(wrong_class)]}
     
     # remove columns with missingness ( > 50%)
@@ -619,15 +619,15 @@ for(tissue in tissues){
   col[which(res_df$BONF < .05)] = "firebrick3"
   
   ## decide what to label and save as significant
-  res_df$vLabel = ifelse(abs(res_df$arcsinh) > .1 | res_df$P < .05, res_df$GeneSymbol, NA)
+  res_df$vLabel = ifelse(res_df$P < .9, res_df$GeneSymbol, NA)
   res_df$vLabel = gsub("[.]", "-", res_df$vLabel)
   top_df = res_df[!is.na(res_df$vLabel),]
   fwrite(top_df,paste(metafolder,"/",tissue,"_",analysislabel,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
   
-  ## top 20 pval and top 20 diffs only, to reduce clutter
+  ## top 30 pval and top 20 diffs only, to reduce clutter
   topD = order(abs(res_df$arcsinh),decreasing=T)
   topP = order(res_df$FDR)
-  keepLabels = unique(c(topD[1:20],topP[1:20]))
+  keepLabels = unique(c(topD[1:20],topP[1:30]))
   dropLabels = c(1:nrow(res_df))
   dropLabels = dropLabels[-which(dropLabels %in% keepLabels)]
   res_df$vLabel[dropLabels] = NA

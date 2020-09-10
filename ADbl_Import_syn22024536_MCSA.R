@@ -17,15 +17,17 @@ genes = data$GeneName[-64254]
 
 Exprs = data[-64254,-c(1:7)]
 names = names(Exprs)
+allzero = rowSums(Exprs)
+allzero = which(allzero == 0)
+Exprs = Exprs[-allzero,]
+genes = genes[-allzero]
 Exprs = cpm(Exprs,log=F)
 Exprs = normalizeQuantiles(Exprs)
-
-## TODO ask Chunling/Glatt about deleting all with all 0 == 16987
-
 Exprs = asinh(Exprs)
 
 Exprs = data.frame(PROBEID = genes, Exprs)
 names(Exprs) = c("PROBEID",names)
+
 
 covs = data.frame(Sample_ID = rawcovs$individualID,
                   FACTOR_tissue = "whole_blood",

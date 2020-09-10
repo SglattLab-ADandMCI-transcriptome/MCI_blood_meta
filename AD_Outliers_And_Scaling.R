@@ -119,6 +119,7 @@ for(tissue in tissues){
   cat("\nMerging.\n")
   datAll = Reduce(function(x,y) merge(x,y,by='SYMBOL',all = TRUE), df_list)
   dim(datAll)
+  rm(df_list)
   
   # cat("\nWriting merged numeric table to file.")
   # if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
@@ -334,6 +335,9 @@ for(tissue in tissues){
   scaledDf = ldply(keep)
   orgD = ldply(keepo)
   facD = ldply(keepf)
+  rm(keep)
+  rm(keepo)
+  rm(keepf)
   
   cat("\nWriting merged factor table to file.\n")
   fwrite(facD, file=paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),quote=F,row.names=F,sep="\t")
@@ -347,46 +351,64 @@ for(tissue in tissues){
   print(pca_outlier_list)
   sink()
   
-  # boxplot of scaled expression
-  cat("\nGenerating final boxplots and writing data.")
-  scaledExpr = scaledDf[,!grepl("FACTOR_", colnames(scaledDf))]
-  # boxplot(t(scaledExpr), outline=F, col = as.factor(scaledDf$FACTOR_studyID))
-  col = rainbow(length(unique(scaledDf$FACTOR_studyID)))
-  col = col[as.factor(scaledDf$FACTOR_studyID)]
-  png(file = paste(qcFolder,tissue,"_BOXPLOT_scaled_values_merged_genes.png",sep=""), res =300 , units = "in", width = 8, height = 5)
-  boxplot(t(scaledExpr), outline=FALSE, 
-          xlab="Samples",
-          ylab=expression(paste("Scaled values")),
-          col = col,
-          border = col,
-          main = paste(tissue,"Scaled Gene Expression Values"))
-  legend("bottomleft", pch = 15, ncol = 2, cex=0.75, legend = unique(scaledDf$FACTOR_studyID), col = unique(col), bty="n")
-  dev.off()
-  
-  fwrite(scaledDf,paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"))
-  
-  # PCA analysis
-  cat("\nPerforming PCA analysis on scaled and merged data.\n")
-  pca = prcomp(scaledExpr[,colSums(is.na(scaledExpr))==0])
-  
-  # calculate variance explained by PCs
-  sdev=(pca$sdev^2)/sum(pca$sdev^2)*100
-  sdev=paste("PC", 1:length(sdev), " (", round(sdev,2),"%)", sep="")
-  
-  pca = data.frame(pca$x)
-  pca$studyID = scaledDf$FACTOR_studyID
-  
-  png(paste(qcFolder,tissue,"_PCA_scaled_values_merged_genes.png", sep =""), res=300,units="in",height = 6, width = 10)
-  print(
-    ggplot(pca, aes(x = PC1, y = PC2, col = factor(studyID))) +
-      scale_color_brewer('Study ID', palette = 'Spectral')+
-      geom_point(size = 3) +
-      theme_minimal() +
-      theme(panel.border = element_rect(size=1,fill=NA), axis.title = element_text(size =12), axis.text=element_text(color='black',size=12)) +
-      xlab(sdev[1]) +
-      ylab(sdev[2])
-  )
-  dev.off()
+  ## R is leaking memory and can't handle doing these plots.
+  ## not doing mega-analysis anyway so we don't need the scaled/merged table
+  ## TODO someday split up the studies or something, we don't need all these 0s and NAs
+  # rm(datAll)
+  # rm(datExpr0)
+  # rm(geneExpr)
+  # rm(orgD)
+  # rm(rawall)
+  # rm(rawdat)
+  # rm(readIn)
+  # rm(sf_list)
+  # rm(split)
+  # gc()
+  # 
+  # 
+  # 
+  # 
+  # 
+  # # boxplot of scaled expression
+  # cat("\nGenerating final boxplots and writing data.")
+  # scaledExpr = scaledDf[,!grepl("FACTOR_", colnames(scaledDf))]
+  # # boxplot(t(scaledExpr), outline=F, col = as.factor(scaledDf$FACTOR_studyID))
+  # col = rainbow(length(unique(scaledDf$FACTOR_studyID)))
+  # col = col[as.factor(scaledDf$FACTOR_studyID)]
+  # png(file = paste(qcFolder,tissue,"_BOXPLOT_scaled_values_merged_genes.png",sep=""), res =300 , units = "in", width = 8, height = 5)
+  # boxplot(t(scaledExpr), outline=FALSE, 
+  #         xlab="Samples",
+  #         ylab=expression(paste("Scaled values")),
+  #         col = col,
+  #         border = col,
+  #         main = paste(tissue,"Scaled Gene Expression Values"))
+  # legend("bottomleft", pch = 15, ncol = 2, cex=0.75, legend = unique(scaledDf$FACTOR_studyID), col = unique(col), bty="n")
+  # dev.off()
+  # 
+  # fwrite(scaledDf,paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"))
+  # 
+  # # PCA analysis
+  # cat("\nPerforming PCA analysis on scaled and merged data.\n")
+  # pca = prcomp(scaledExpr[,colSums(is.na(scaledExpr))==0])
+  # 
+  # # calculate variance explained by PCs
+  # sdev=(pca$sdev^2)/sum(pca$sdev^2)*100
+  # sdev=paste("PC", 1:length(sdev), " (", round(sdev,2),"%)", sep="")
+  # 
+  # pca = data.frame(pca$x)
+  # pca$studyID = scaledDf$FACTOR_studyID
+  # 
+  # png(paste(qcFolder,tissue,"_PCA_scaled_values_merged_genes.png", sep =""), res=300,units="in",height = 6, width = 10)
+  # print(
+  #   ggplot(pca, aes(x = PC1, y = PC2, col = factor(studyID))) +
+  #     scale_color_brewer('Study ID', palette = 'Spectral')+
+  #     geom_point(size = 3) +
+  #     theme_minimal() +
+  #     theme(panel.border = element_rect(size=1,fill=NA), axis.title = element_text(size =12), axis.text=element_text(color='black',size=12)) +
+  #     xlab(sdev[1]) +
+  #     ylab(sdev[2])
+  # )
+  # dev.off()
 }
 
 
