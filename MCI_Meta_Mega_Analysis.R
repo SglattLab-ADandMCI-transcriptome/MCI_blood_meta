@@ -1,4 +1,4 @@
-setwd("~/PsychGENe/brain/")
+setwd("~/PsychGENe/MCI_blood_meta/")
 
 ## these can be set to do AD instead.  tissues can be c(...)
 analysislabel = "MCI"

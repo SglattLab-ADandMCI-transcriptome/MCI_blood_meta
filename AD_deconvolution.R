@@ -1,3 +1,6 @@
+## jon says use CIBERSORT
+
+
 ## i'm just moving the stuff from there to here now.  this doesn't actually work. yet.
 
 # require(dtangle)

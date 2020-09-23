@@ -1,4 +1,4 @@
-setwd("~/PsychGENe/brain/")
+setwd("~/PsychGENe/MCI_blood_meta/")
 
 ## to get covariates, name genes, and median-average duplicate genes
 ## GCH w/JH

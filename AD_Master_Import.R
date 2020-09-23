@@ -3,7 +3,7 @@
 ## Unification of naming and QA is the goal here
 ## GCH
 
-setwd("~/PsychGENe/brain/")
+setwd("~/PsychGENe/MCI_blood_meta/")
 
 # install if needed
 # BiocManager::install(c("affy","oligo","plyr","limma","pd.hg.u133.plus.2", "R.utils",

@@ -1,10 +1,13 @@
-setwd("~/PsychGENe/brain/")
+setwd("~/PsychGENe/MCI_blood_meta/")
 ##risk scores for MCI blood
 
 analysislabel = "MCI"
 caselabel = "MCI"
 controllabel = "CTL"
 covariateslist = c("FACTOR_dx", "FACTOR_sex", "FACTOR_age","FACTOR_race")
+
+# make the new folder
+if(!dir.exists("./classifier_results/")){ dir.create("./classifier_results/")}
 
 require(data.table)
 require(limma)
