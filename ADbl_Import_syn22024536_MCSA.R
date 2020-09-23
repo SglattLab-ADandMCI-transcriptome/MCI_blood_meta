@@ -8,20 +8,32 @@ if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master im
 
 studyname = "MCSA"
 
+cat("Reading raw count data from syn22024536 aka MCSA\n")
+
 data = fread(paste0(rawlocation,"blood/syn22024536/mcsa_rnaseq_rawcount.txt"), data.table=F)
 rawcovs = fread(paste0(rawlocation,"blood/syn22024536/MCSA_individual_human_metadata.csv"), data.table=F)
 rawages = fread(paste0(rawlocation,"blood/syn22024536/MCSA_biospecimen_metadata.csv"), data.table=F)
 
 ## this is reading in a line of NA at the bottom, 64254
 genes = data$GeneName[-64254]
-
 Exprs = data[-64254,-c(1:7)]
 names = names(Exprs)
-allzero = rowSums(Exprs)
-allzero = which(allzero == 0)
-Exprs = Exprs[-allzero,]
-genes = genes[-allzero]
 Exprs = cpm(Exprs,log=F)
+
+cat("Filtering genes with less than", filterCPM, "CPM in",
+    filterPercent*100, "percent or more of subjects\n")
+filtered = logical()
+for(i in 1:nrow(Exprs)){
+  filtered[i] = FALSE
+  quux = Exprs[i,]<filterCPM
+  if(sum(quux) >= filterPercent*ncol(Exprs)){
+    filtered[i] = TRUE
+  }
+}
+filtered = which(filtered)
+Exprs = Exprs[-filtered,]
+genes = genes[-filtered]
+
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 

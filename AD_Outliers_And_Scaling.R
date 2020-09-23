@@ -384,9 +384,9 @@ for(tissue in tissues){
   #         main = paste(tissue,"Scaled Gene Expression Values"))
   # legend("bottomleft", pch = 15, ncol = 2, cex=0.75, legend = unique(scaledDf$FACTOR_studyID), col = unique(col), bty="n")
   # dev.off()
-  # 
-  # fwrite(scaledDf,paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"))
-  # 
+  
+  fwrite(scaledDf,paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"))
+  
   # # PCA analysis
   # cat("\nPerforming PCA analysis on scaled and merged data.\n")
   # pca = prcomp(scaledExpr[,colSums(is.na(scaledExpr))==0])

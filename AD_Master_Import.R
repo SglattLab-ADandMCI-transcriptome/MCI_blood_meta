@@ -30,6 +30,10 @@ require(edgeR)
 ## Will have raw data on a flash drive eventually
 rawlocation = "D:/brain/data/"
 
+## filters for RNAseq
+filterPercent = .5
+filterCPM = 1
+
 # make QC plot folder
 QCfolder = paste(getwd(),"/QCplots",sep="")
 if(!dir.exists(QCfolder)){ dir.create(QCfolder)}

@@ -1,0 +1,26 @@
+Confusion Matrix and Statistics
+
+          Reference
+Prediction CTL MCI
+       CTL 193  81
+       MCI 102 192
+                                          
+               Accuracy : 0.6778          
+                 95% CI : (0.6377, 0.7161)
+    No Information Rate : 0.5194          
+    P-Value [Acc > NIR] : 1.35e-14        
+                                          
+                  Kappa : 0.3565          
+                                          
+ Mcnemar's Test P-Value : 0.1393          
+                                          
+            Sensitivity : 0.7033          
+            Specificity : 0.6542          
+         Pos Pred Value : 0.6531          
+         Neg Pred Value : 0.7044          
+             Prevalence : 0.4806          
+         Detection Rate : 0.3380          
+   Detection Prevalence : 0.5176          
+      Balanced Accuracy : 0.6788          
+                                          
+       'Positive' Class : MCI     

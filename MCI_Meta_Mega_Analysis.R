@@ -13,9 +13,13 @@ tissues = c("whole_blood")
 
 ## TODO figure out something other than tidy.matrix >:(
 
-## TODO SVs adjustment
-
 ## TODO unknown and other race to NA?  and/or impute?
+
+## TODO a variation filter or a too many zeroes filter (to get rid of artifacts?)
+## https://www.biostars.org/p/216672/
+## "nonzero abundance" -- talk to jon
+
+## TODO a filter for genes/transcripts that aren't in very many studies
 
 # load these packages (install if needed)
 require(plyr)
@@ -177,13 +181,14 @@ for(tissue in tissues){
 
     # bar = min(c(num.sv(foo,mod, method = 'be'), 3))
     bar = num.sv(foo,mod,method='be')
-    # bar = num.sv(foo,mod,method='leek')
+    # bar = num.sv(foo,mod,method='leek')  ##conservative approach
     cat("#SVs = ",bar,"\n")
     svobj = sva(foo,mod, n.sv = bar)
     svdf = as.data.frame(svobj$sv)
 
     ## include only the first 3
-    baz = min(bar,3)
+    # baz = min(bar,3)  ##TODO put back
+    baz = bar  ## TODO delete
     if(ncol(svdf) > 0){
       svdf = svdf[,1:baz,drop=F]
       colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
@@ -211,6 +216,7 @@ for(tissue in tissues){
     summary = summary(lmFit)
     # stdSummary = summary(stdLmFit)
     # format summary statistics into a table
+    ### TODO this broke
     tidy_table = lapply(summary, function(x) broom::tidy(x))
     names(tidy_table) = colnames(y)
     # tidy_stdTable = lapply(stdSummary, function(x) broom::tidy(x))

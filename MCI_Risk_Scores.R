@@ -1,5 +1,5 @@
 setwd("~/PsychGENe/brain/")
-##risk scores and machine learning for MCI blood
+##risk scores for MCI blood
 
 analysislabel = "MCI"
 caselabel = "MCI"
@@ -18,12 +18,15 @@ tissues = "whole_blood"
 
 tissue = tissues[1]
 for (tissue in tissues){
-  expr = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),data.table=F)
-  covs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),data.table=F)
-  data = data.frame(covs,expr)
-  cat("all(data$FACTOR_sampleID == data$FACTOR_sampleID.1)")
-  print(all(data$FACTOR_sampleID == data$FACTOR_sampleID.1))
-  data = data[,-which(names(data) == "FACTOR_sampleID.1")]
+  # expr = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),data.table=F)
+  # covs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),data.table=F)
+  # data = data.frame(covs,expr)
+  # cat("all(data$FACTOR_sampleID == data$FACTOR_sampleID.1)")
+  # print(all(data$FACTOR_sampleID == data$FACTOR_sampleID.1))
+  # data = data[,-which(names(data) == "FACTOR_sampleID.1")]
+  
+  data = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"),data.table=F)
+
   data$FACTOR_age = as.numeric(sub("\\+","",data$FACTOR_age))
   
   data = data[grep(paste0(controllabel,"|",caselabel,"$"),data$FACTOR_dx),]
@@ -37,7 +40,9 @@ for (tissue in tissues){
   cat("\nStudies: ",unique(data$FACTOR_studyID))
   
 
-  ## TODO account for study and other covs
+  ## TODO account for study and other covs?
+  ## resid function on a fit w/o dx predictor
+  ## output = resid(lm(GeneExprMatrix ~ Age + Sex, data = FactorData))
   ## create risk score of odds ratios
   # Model matrix (basic)
   PredListNames = paste('FACTOR_', c("dx", "sex", "age","ethnicity","studyID"), collapse= "|", sep="")
@@ -51,6 +56,9 @@ for (tissue in tissues){
   fit = lmFit(y, design)
   dif = eBayes(fit)
   tops = topTable(dif)
+  
+  
+  ## TODO use lmfit to get out the other predictors?
   
   
   ## create weight file
@@ -122,18 +130,7 @@ for (tissue in tissues){
   # testing/ROC for numbers of genes (20,50,100)
   
   ## TODO account for study and other covs
-  ## SVM
-  # foo = paste(names(predictors),collapse = " + ")
-  # form = as.formula(paste0("~ ", foo))
-  x = data[,-grep("FACTOR_",names(data))]
-  x = x[,which(colSums(is.na(x))<1)]
-  dx = factor(predictors$FACTOR_dx)
-  machine = svm(dx ~.,data = x)
-  
-  
-  pr = prcomp(x)
-  pca = data.frame(pr$x)
-  plot(pca$PC1 ~ pca$PC2)
+
   
   
   

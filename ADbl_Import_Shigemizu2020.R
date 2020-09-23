@@ -9,7 +9,7 @@ if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master im
 
 studyname = "Shigemizu20"
 
-cat("Reading normalized data from Shigemizu20 aka Shigemizu20\n")
+cat("Reading CPM data from Shigemizu20 aka Shigemizu20\n")
 
 data = fread(paste0(rawlocation,"blood/Shigemizu20/cpm.txt"), data.table=F)
 rawcovs = read.xlsx(paste0(rawlocation,"blood/Shigemizu20/13195_2020_654_MOESM1_ESM.xlsx"))
@@ -37,10 +37,21 @@ covs$Sample_ID = newID
 newID = gsub("^","S20_",names(data)[-1])
 genes = data$gene
 Exprs = data[,-1]
-allzero = rowSums(Exprs)
-allzero = which(allzero == 0)
-Exprs = Exprs[-allzero,]
-genes = genes[-allzero]
+
+cat("Filtering genes with less than", filterCPM, "CPM in",
+    filterPercent*100, "percent or more of subjects\n")
+filtered = logical()
+for(i in 1:nrow(Exprs)){
+  filtered[i] = FALSE
+  quux = Exprs[i,]<filterCPM
+  if(sum(quux) >= filterPercent*ncol(Exprs)){
+    filtered[i] = TRUE
+  }
+}
+filtered = which(filtered)
+Exprs = Exprs[-filtered,]
+genes = genes[-filtered]
+
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 names(Exprs) = newID

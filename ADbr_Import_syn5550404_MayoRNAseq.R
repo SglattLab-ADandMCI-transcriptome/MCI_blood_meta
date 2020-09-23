@@ -3,6 +3,10 @@
 
 ## we had decided 90 or above would be shifted to 90
 
+## TODO this needs to just be split up so I can do the filtering properly
+
+
+
 require(data.table)
 require(limma)
 require(biomaRt)
@@ -11,6 +15,8 @@ require(edgeR)
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
 studyname = "MayoRNAseq"
+
+cat("Reading raw count data from syn5550404 aka MayoRNAseq\n")
 
 CBEdata = fread(paste0(rawlocation,"syn5550404/MayoRNAseq_RNAseq_CBE_transcriptCounts.tsv"), data.table=F)
 TCXdata = fread(paste0(rawlocation,"syn5550404/MayoRNAseq_RNAseq_TCX_transcriptCounts.tsv"), data.table=F)
@@ -24,6 +30,24 @@ TCXnames = names(TCXdata)[-1]
 
 CBEExprs = cpm(CBEdata[-1],log=F)
 TCXExprs = cpm(TCXdata[-1],log=F)
+
+
+
+# cat("Filtering genes with less than", filterCPM, "CPM in",
+#     filterPercent*100, "percent or more of subjects\n")
+# filtered = logical()
+# for(i in 1:nrow(Exprs)){
+#   filtered[i] = FALSE
+#   quux = Exprs[i,]<filterCPM
+#   if(sum(quux) >= filterPercent*ncol(Exprs)){
+#     filtered[i] = TRUE
+#   }
+# }
+# filtered = which(filtered)
+# Exprs = Exprs[-filtered,]
+# genes = genes[-filtered]
+
+
 CBEExprs = normalizeQuantiles(CBEExprs)
 TCXExprs = normalizeQuantiles(TCXExprs)
 CBEExprs = asinh(CBEExprs)
