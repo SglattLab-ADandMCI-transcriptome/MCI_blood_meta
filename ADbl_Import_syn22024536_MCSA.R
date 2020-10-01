@@ -52,6 +52,8 @@ ages = data.frame(Sample_ID = rawages$specimenID,
                   number = rawages$individualID,
                   age = rawages$samplingAge)
 
+ages$age = gsub("\\+","", ages$age)
+
 order = numeric()
 for(i in 1:nrow(covs)){
   order[i] = which(ages$number == covs$Sample_ID[i])

@@ -11,15 +11,9 @@ tissues = c("whole_blood")
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
-## TODO figure out something other than tidy.matrix >:(
+## TODO deconvolution. get abundances in other script, turn into PCs/whatever here
 
 ## TODO unknown and other race to NA?  and/or impute?
-
-## TODO a variation filter or a too many zeroes filter (to get rid of artifacts?)
-## https://www.biostars.org/p/216672/
-## "nonzero abundance" -- talk to jon
-
-## TODO a filter for genes/transcripts that aren't in very many studies
 
 # load these packages (install if needed)
 require(plyr)
@@ -63,8 +57,28 @@ if(all(dattis == covtis, covtis == scaletis)){
   stop("Tissue files are... not right.")
 }
 
+tissue = tissues[1]
 for(tissue in tissues){
+  ## TODO get rid of Chen entirely
   message("Beginning analysis: ",tissue)
+  
+  ## TODO use abundances
+  cat("Generating abundances principal components\n")
+  abfiles = list.files("./deconvolution","abundances", full.names = T)
+  ablist = list()
+  for(file in 1:length(abfiles)){
+    ablist[[file]] = fread(abfiles[file], data.table=F)
+  }
+  abundances = ldply(ablist)
+  abnames = abundances$V1
+  abundances = abundances[,-1]
+  row.names(abundances) = abnames
+  abpc = prcomp(abundances)
+  abpc3 = abpc$x[,c(1:3)]
+  row.names(abpc3) = abnames
+  names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
+  
+  
   ## DGE per tissue per study, non-scaled data
   datExprTissue = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),
                         data.table=F, stringsAsFactors = F)
@@ -93,7 +107,6 @@ for(tissue in tissues){
   study_id = unique(datExprTissue$FACTOR_studyID)
   save_results = list()
   for( i in 1:length(study_id)){
-    
     cat("\nStudy-wise differential expression analysis:",tissue,i,"~",study_id[[i]])
     expr.tmp = datExprTissue[datExprTissue$FACTOR_studyID %in% study_id[[i]],]
     
@@ -164,6 +177,17 @@ for(tissue in tissues){
     low_var_filter = var_filter[is.na(var_filter) | var_filter < .001]
     
     if(length(low_var_filter) > 0){y = y[,!colnames(y) %in% names(low_var_filter)]}
+
+    ##include first 3 principal components of blood cell abundances
+    abindex = numeric()
+    subjects = x$FACTOR_sampleID
+    for(j in 1:length(subjects)){
+      abindex[j] = which(abnames == subjects[j])
+    }
+    print("all(subjects == abnames[abindex])")
+    print(all(subjects == abnames[abindex]))
+    abtemp = abpc3[abindex,]
+    predictors = data.frame(predictors,abtemp)
     
     ## Surrogate variable analysis - default method 
     cat("Analysing for surrogate variables.\n")
@@ -171,37 +195,26 @@ for(tissue in tissues){
     mod = model.matrix(~ ., data= predictors) # model with known factors and covariates
     mod0 = model.matrix(~1,data=predictors) # intercept only model
 
-    
-    
-    
-    
-
     svobj = NULL
     foo = exprs(exprs)
 
     # bar = min(c(num.sv(foo,mod, method = 'be'), 3))
-    bar = num.sv(foo,mod,method='be')
-    # bar = num.sv(foo,mod,method='leek')  ##conservative approach
+    # bar = num.sv(foo,mod,method='be')
+    bar = num.sv(foo,mod,method='leek')  ##conservative approach
     cat("#SVs = ",bar,"\n")
     svobj = sva(foo,mod, n.sv = bar)
     svdf = as.data.frame(svobj$sv)
 
     ## include only the first 3
-    # baz = min(bar,3)  ##TODO put back
-    baz = bar  ## TODO delete
+    # baz = min(bar,3)
+    ## or include all
+    baz = bar
     if(ncol(svdf) > 0){
       svdf = svdf[,1:baz,drop=F]
       colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
       predictors = data.frame(predictors, svdf)
     }
 
-
-
-
-    
-    
-    
-    
     # final design matrix for differential expression analysis
     # predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
     # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = controllabel)
@@ -212,28 +225,15 @@ for(tissue in tissues){
     # fit the linear model (arcsinh expression as response variable)
     lmFit = lm(as.matrix(y) ~ -1 + design)
     
-    # extract summary statistics
-    summary = summary(lmFit)
-    # stdSummary = summary(stdLmFit)
-    # format summary statistics into a table
-    ### TODO this broke
-    tidy_table = lapply(summary, function(x) broom::tidy(x))
-    names(tidy_table) = colnames(y)
-    # tidy_stdTable = lapply(stdSummary, function(x) broom::tidy(x))
-    # names(tidy_stdTable) = colnames(y)
+    tidy_table = broom::tidy(lmFit)
+    names(tidy_table)[1] = "GeneSymbol"
     
-    # squash into a big table
-    big_table = ldply(tidy_table)
-    big_table$N_cases = Nca
-    big_table$N_controls = Nco
-    big_table$N = nrow(x)
-    # stdTable = ldply(tidy_stdTable)
-    # big_table$BetaStd = stdTable$estimate
-    # big_table$SEStd = stdTable$std.error
-    
-    nGenes = length(unique(big_table$.id))
-    
-    names(big_table)[names(big_table) %in% ".id"] = "GeneSymbol"
+    big_table = data.frame(studyID=study_id[i],
+                           tidy_table,
+                           N_cases = Nca,
+                           N_controls = Nco,
+                           N = nrow(x)
+    )
     save_results[[i]]  = big_table
     names(save_results)[[i]] = study_id[[i]]
   }
@@ -332,10 +332,15 @@ for(tissue in tissues){
                            N_control = c(sub$N_controls),
                            studyID = sub$studyID)
     
-    if(nrow(sub_combn) < 2) next
-    
-    
-    if(nrow(sub) <= 1) next
+    ## must have at least 3 studies contributing
+    if(nrow(sub_combn) < 3){
+      cat("Not enough studies for",i,"\n")
+      next
+    }
+    if(nrow(sub) < 3){
+      cat("Not enough studies for",i,"\n")
+      next
+    }
     
     direction = sign(sub_combn$estimate)
     direction = ifelse(direction == 1, "+", "-")

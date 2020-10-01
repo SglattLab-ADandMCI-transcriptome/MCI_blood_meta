@@ -76,6 +76,7 @@ for(i in 1:length(covfiles)){
     newcovs[[n]] = covs[which(covs$Sample_ID == datanames[n])[1],]
   }
   covs = ldply(newcovs)
+  covs$FACTOR_age = gsub("+","",covs$FACTOR_age)
   
   thing = data.frame(covs,FACTOR_studyID = studyID, data)
   
