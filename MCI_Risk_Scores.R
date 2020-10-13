@@ -17,13 +17,14 @@ require(pROC)
 # require(metafor)
 
 scalefiles = list.files("./data_for_analysis/","_ScaledWithFactors_OutliersRemoved_allstudies.txt")
-
 tissues = sub("_ScaledWithFactors_OutliersRemoved_allstudies.txt","",scalefiles)
 
 tissue = tissues[1]
 for (tissue in tissues){
   ## FACTOR_etc in the first few columns, genes in the rest, subjects as rows
-  data = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"),data.table=F)
+  data = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_training.txt"),data.table=F)
+  
+  ## TODO PCs of blood regress
 
   data$FACTOR_age = as.numeric(sub("\\+","",data$FACTOR_age))
   
@@ -188,6 +189,9 @@ for (tissue in tissues){
   ## TODO save fits and compare
   ## save AUCs
   ## save coefs
+  
+  
+  ## TODO compare to validation set
   
   
   

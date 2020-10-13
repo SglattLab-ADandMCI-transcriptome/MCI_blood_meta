@@ -27,7 +27,7 @@ dupav <- function(x) {
   foo = 0
   names = x$PROBEID
   ln = length(unique(names))
-  cat("\nRemoving duplicates.  Total gene names:", length(unique(names)),
+  cat("Removing duplicates.  Total gene names:", length(unique(names)),
       " Total lines:",length(names),"\n")
   for(name in unique(names)) {
     l = which(names==name)

@@ -59,10 +59,9 @@ if(all(dattis == covtis, covtis == scaletis)){
 
 tissue = tissues[1]
 for(tissue in tissues){
-  ## TODO get rid of Chen entirely
   message("Beginning analysis: ",tissue)
   
-  ## TODO use abundances
+  ##Generate abundances PCs
   cat("Generating abundances principal components\n")
   abfiles = list.files("./deconvolution","abundances", full.names = T)
   ablist = list()
@@ -74,9 +73,9 @@ for(tissue in tissues){
   abundances = abundances[,-1]
   row.names(abundances) = abnames
   abpc = prcomp(abundances)
-  abpc3 = abpc$x[,c(1:3)]
-  row.names(abpc3) = abnames
+  abpc3 = data.frame(abpc$x[,c(1:3)])
   names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
+  ## TODO a pca graph like in the scaling thing
   
   
   ## DGE per tissue per study, non-scaled data
@@ -103,6 +102,9 @@ for(tissue in tissues){
       datExprTissue = datExprTissue[-which(datExprTissue$FACTOR_studyID == study),]
     }
   }
+  
+  print(table(datExprTissue$FACTOR_dx))
+  print(table(datExprTissue$FACTOR_studyID, datExprTissue$FACTOR_dx))
   
   study_id = unique(datExprTissue$FACTOR_studyID)
   save_results = list()
@@ -313,7 +315,7 @@ for(tissue in tissues){
   ## perform meta-analysis of genes (REML model)
   
   genes = unique(mergestats$GeneSymbol)
-  genes = genes[!grepl("_", genes)]
+  genes = genes[!grepl("FACTOR_", genes)]
   
   res_save = list()
   loo_save = list()
@@ -334,11 +336,11 @@ for(tissue in tissues){
     
     ## must have at least 3 studies contributing
     if(nrow(sub_combn) < 3){
-      cat("Not enough studies for",i,"\n")
+      cat("\rNot enough studies for",i,genes[[i]],"\n")
       next
     }
     if(nrow(sub) < 3){
-      cat("Not enough studies for",i,"\n")
+      cat("\rNot enough studies for",i,genes[[i]],"\n")
       next
     }
     
@@ -380,7 +382,7 @@ for(tissue in tissues){
     } 
   
     if( unique(grepl("Error",res)) == T ){
-      cat("Giving up on",i,"\n")
+      cat("\rGiving up on",i,genes[[i]],"\n")
       next
     }
     
@@ -416,21 +418,24 @@ for(tissue in tissues){
   foo = llply(res_save,class)
   foo = unlist(foo)
   res_df = ldply(res_save[which(foo == "data.frame")])
-  
+
   min(res_df$P)
   
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta.txt", sep=""),
+         file = paste(metafolder,"/",tissue,"_",analysislabel,"_meta.txt", sep=""),
          quote  = F, row.names = F)
   write(names(res_save)[which(foo != "data.frame")],
-        file = paste(metafolder,"/",tissue,"_prefreeze_qc",analysislabel,"_meta_NULLmetaforRMA.txt", sep=""))
+        file = paste(metafolder,"/",tissue,"_",analysislabel,"_meta_NULLmetaforRMA.txt", sep=""))
   
+  ## save the loo
+  loo_df = ldply(loo_save)
+  fwrite(loo_df,file = paste0(metafolder,"/",tissue,"_loosave.txt"))
   
   # ab = res_df[res_df$GeneSymbol %in% gene_filter$GeneSymbol, ]
   
-  ## at least 2 studies are contributing to the gene
-  res_df = res_df[res_df$Nstudy >= 2, ]
+  ## at least 3 studies are contributing to the gene
+  res_df = res_df[res_df$Nstudy >= 3, ]
   res_df = res_df[order(res_df$P,decreasing=F),]
   res_df$FDR = p.adjust(res_df$P, "fdr")
   res_df$BONF = p.adjust(res_df$P, "bonferroni")
@@ -454,14 +459,10 @@ for(tissue in tissues){
   # Combine results with chromosome map
   res_df = merge(loc_df, res_df, by="GeneSymbol",all.y=T)
   res_df = res_df[order(res_df$P, decreasing = F), ]
-  
-  
-  ## TODO is this actually ... leave one out?
-  ## I don't think we're saving the loo..
-  fwrite(ldply(loo_save),file = paste0(metafolder,"/",tissue,"_loosave.txt"))
+
   fwrite(data.table(res_df), 
          sep = "\t",
-         file = paste(metafolder,"/",tissue,"_freeze_qc",analysislabel,"_meta_Nmin4_LeaveOneOut.txt",sep=""), quote  = F, row.names = F)
+         file = paste(metafolder,"/",tissue,"_",analysislabel,"_meta_mapped.txt",sep=""), quote  = F, row.names = F)
   
   
   # qq-plot
@@ -664,7 +665,7 @@ for(tissue in tissues){
 
   
   ## Forest plots
-  cat("\nConstructing forest plot.")
+  cat("\nConstructing meta forest plots.")
   pdf(paste(forestfolder,"/",tissue,"_FORESTPLOT_all.pdf",sep=""))
   
   res_filter = res_df[order(res_df$P,decreasing=F), ]
@@ -673,7 +674,6 @@ for(tissue in tissues){
   mergestats$GeneSymbol = gsub("[.]", "-", mergestats$GeneSymbol)
   
   if(length(topgenes)>1) for( i in 1:length(topgenes)){
-    
     # subset meta-analysis results
     meta = res_filter[res_filter$GeneSymbol %in% topgenes[[i]], ]
     keep_studies = unlist(strsplit(as.character(meta$study_kept), ", "))
@@ -719,7 +719,7 @@ for(tissue in tissues){
       xlim(min(floor(results$CI_LOW)), max(ceiling(results$CI_HIGH))) +
       xlab(expression(paste("arcsinh score change (95% CI)"))) +
       ylab(NULL) +
-      ggtitle( topgenes[[i]]) +
+      ggtitle(paste0(topgenes[[i]]," - Contribution")) +
       geom_vline(aes(xintercept = 0),linetype="dashed", col = "grey") +
       facet_grid(Source~., scales = "free_y", space = "free_y") + 
       geom_errorbarh(xmin = results$CI_LOW, xmax = results$CI_HIGH, col = results$col, height = NA) + 
@@ -729,6 +729,75 @@ for(tissue in tissues){
     png(paste("./forestplots/RANK_",i,"_FORESTPLOT_",topgenes[[i]],".png", sep = ""),res=300,units="in",height=5,width =5.5)
     print(g)
     dev.off()
+    print(g)
+    
+  } else print("No top genes.")
+  dev.off()
+  
+  cat("\nConstructing LOO forest plots.")
+  pdf(paste(forestfolder,"/",tissue,"_LOO_FORESTPLOT_all.pdf",sep=""))
+  
+  loo_df$GeneSymbol = gsub("[.]", "-", loo_df$GeneSymbol)
+  
+  foo = which(loo_df$GeneSymbol %in% topgenes)
+  loo_filter = loo_df[foo, ]
+
+  if(length(topgenes)>1) for( i in 1:length(topgenes)){
+    # subset meta-analysis results
+    meta = res_filter[res_filter$GeneSymbol %in% topgenes[[i]], ]
+    keep_studies = unlist(strsplit(as.character(meta$study_kept), ", "))
+    
+    meta = data.frame(arcsinh = meta$arcsinh,
+                      P = meta$P, SE = meta$SE, 
+                      studyID = "Pooled result", 
+                      Ncase = meta$Ncase, 
+                      Ncontrol = meta$Ncontrol,
+                      N = meta$Nsample,
+                      col = "blue", 
+                      Source = "Meta-analysis")
+    
+    
+    sub = loo_filter[loo_filter$GeneSymbol %in% topgenes[[i]], ]
+    sub = sub[sub$studyID %in% keep_studies, ] # retain correct studies for forest plot
+
+    if(nrow(sub) > 0){
+      indiv = data.frame(arcsinh = sub$estimate, 
+                         P = sub$pval,
+                         SE = sub$se, 
+                         studyID = sub$studyID,
+                         # Ncase = sub$N_cases, 
+                         # Ncontrol = sub$N_controls,
+                         col = "red", 
+                         Source = "Studies");
+      
+      results = ldply(list(indiv,meta))
+    }else{
+      results = meta
+    }
+    
+    results$P_label = paste("P = ", format(scientific=T,digits=3,results$P), sep = "")
+    results$CI_LOW = results$arcsinh - (1.96 * results$SE)
+    results$CI_HIGH = results$arcsinh  + (1.96 * results$SE)
+    
+    locus = res_df$LOC[res_df$GeneSymbol %in% topgenes[[i]]]
+    
+    g = ggplot(results, aes(x = arcsinh, y = (studyID))) + 
+      geom_point(col = results$col) + 
+      theme_bw() +
+      xlim(min(floor(c(results$CI_LOW,-1))), max(ceiling(c(results$CI_HIGH,1)))) +
+      xlab(expression(paste("arcsinh score change (95% CI)"))) +
+      ylab(NULL) +
+      ggtitle(paste0(topgenes[[i]]," - Leave One Out")) +
+      geom_vline(aes(xintercept = 0),linetype="dashed", col = "grey") +
+      facet_grid(Source~., scales = "free_y", space = "free_y") + 
+      geom_errorbarh(xmin = results$CI_LOW, xmax = results$CI_HIGH, col = results$col, height = NA) + 
+      theme( strip.text.y = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()) + 
+      geom_text(aes(vjust = -1, label = results$P_label))
+    
+    png(paste("./forestplots/RANK_",i,"_LOO_FORESTPLOT_",topgenes[[i]],".png", sep = ""),res=300,units="in",height=5,width =5.5)
+    print(g)
+    dev.off()
+    print(g)
     
   } else print("No top genes.")
   dev.off()

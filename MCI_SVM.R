@@ -1,5 +1,8 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
 ## SVM for MCI blood
+set.seed(13210)
+
+## TODO cuda and big grid ????
 
 analysislabel = "MCI"
 caselabel = "MCI"
@@ -16,14 +19,18 @@ require(limma)
 require(pROC)
 require(e1071)
 require(caret)
+require(plyr)
+require(foreach)
+require(doParallel)
+
+registerDoParallel(cores = 8)
 
 scalefiles = list.files("./data_for_analysis/","_ScaledWithFactors_OutliersRemoved_allstudies.txt")
-
 tissues = sub("_ScaledWithFactors_OutliersRemoved_allstudies.txt","",scalefiles)
 
 tissue = tissues[1]
 for (tissue in tissues){
-  data = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_OutliersRemoved_allstudies.txt"),data.table=F)
+  data = fread(paste0("./data_for_analysis/",tissue,"_ScaledWithFactors_training.txt"),data.table=F)
   
   data$FACTOR_age = as.numeric(sub("\\+","",data$FACTOR_age))
   
@@ -36,83 +43,159 @@ for (tissue in tissues){
     }
   }
 
-  PredListNames = paste('FACTOR_', c("dx", "sex", "age","race","studyID"), collapse= "|", sep="")
+  PredListNames = paste('FACTOR_', c("sampleID","dx", "sex", "age","race","studyID"), collapse= "|", sep="")
   predictors = data[,grep(PredListNames, colnames(data))]
   predictors = data.frame(predictors)
   
-  ## SVM
-  ## TODO cuda and big grid
   x = data[,-grep("FACTOR_",names(data))]
-  x = x[-which(rowSums(is.na(predictors)) > 0),]
-  predictors = predictors[-which(rowSums(is.na(predictors)) > 0),]
-  x = x[,which(colSums(is.na(x))<1)]  ##TODO jon re missingness tolerance
+  badpreds = which(colSums(is.na(predictors)) > 0)
+  if(length(badpreds) > 0){
+    predictors = predictors[,-badpreds]
+  }
+  badgenes = which(colSums(is.na(x)) > 1)
+  if(length(badgenes) > 0){
+    x = x[,-badgenes]
+  }
   dx = factor(predictors$FACTOR_dx)
-
   cat("\nStudies: ",unique(predictors$FACTOR_studyID,"\n"))
   
+  ## cell abundance PCs
+  ##Generate abundances PCs
+  cat("Generating abundances principal components\n")
+  abfiles = list.files("./deconvolution","abundances", full.names = T)
+  ablist = list()
+  for(file in 1:length(abfiles)){
+    ablist[[file]] = fread(abfiles[file], data.table=F)
+  }
+  abundances = ldply(ablist)
+  abnames = abundances$V1
+  abundances = abundances[,-1]
+  row.names(abundances) = abnames
+  abpc = prcomp(abundances)
+  abpc3 = data.frame(abpc$x[,c(1:3)])
+  names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
+  
+  ##include first 3 principal components of blood cell abundances
+  abindex = numeric()
+  subjects = predictors$FACTOR_sampleID
+  for(j in 1:length(subjects)){
+    abindex[j] = which(abnames == subjects[j])
+  }
+  print("all(subjects == abnames[abindex])")
+  print(all(subjects == abnames[abindex]))
+  abtemp = abpc3[abindex,]
+  predictors = data.frame(predictors,abtemp)
+  dx = predictors$FACTOR_dx
+
   ## residuals to take out known covariates
-  ## TODO can't use SVs but can use cell abundance?
-  design = model.matrix( ~ ., predictors[,-which(names(predictors)=="FACTOR_dx")])
+  design = model.matrix( ~ ., predictors[,-which(names(predictors) %in% c("FACTOR_dx","FACTOR_sampleID"))])
   y=t(x)
   resfit = lmFit(y, design)
   residual = resid(resfit,y)
   residual = data.frame(t(residual))
-  
-    
-  ## create folds
-  foldindex = sample(1:numfolds,size = nrow(residual),replace=T)
-
   genes = rownames(residual)
   
-  sink(file = paste("./classifier_results/",tissue,"_SVM_cmatrix_",analysislabel,".txt", sep = ""))
-  sink()
+    
   
-  machines = list()
-  results = list()
-  eachdx = list()
-  cmatrices = list()
-  for(fold in 1:numfolds){
-    cat("\nPerforming SVM for fold:",fold,"\n")
-    ##split training and test
-    trainindex = which(foldindex != fold)
-    train = residual[trainindex,]
-    test = residual[-trainindex,]
-    traindx = dx[trainindex]
-    testdx = dx[-trainindex]
-    eachdx[[fold]] = testdx
-    
-    machine = svm(traindx ~.,data = train,probability = T)
-    machines[[fold]] = machine
-    
-    ## test
-    result = predict(machine, test, decision.values = T, probability = T)
-    results[[fold]] = result
-    
-    cmatrix = confusionMatrix(result,testdx,positive="MCI")
-    cmatrices[[fold]] = cmatrix 
-    print(cmatrix)
-    sink(file = paste("./classifier_results/",tissue,"_SVM_cmatrix_",analysislabel,".txt", sep = ""), append = TRUE)
-    cat("SVM fold",fold)
-    print(cmatrix)
-    sink()
   
-    pr = prcomp(x)
-    pca = data.frame(pr$x)
-    png(file = paste("./QCplots/",tissue,"_SVM_PCAtest_",analysislabel,"_fold_",fold,".png", sep = ""),
-        res = 300, units = "in", height = 8, width = 8)
-    plot(pca$PC1 ~ pca$PC2)
-    dev.off()
-    
-    ## ROC I suppose
-    probs = attributes(result)$probabilities
-    probs = probs[,1]
-    riskroc = roc(response = testdx, predictor = probs)
-    png(file = paste("./QCplots/",tissue,"_SVM_",analysislabel,"_ROC_fold_",fold,".png", sep = ""),
-        res = 300, units = "in", height = 8, width = 8)
-    plot(riskroc,main=paste0("SVM probabilities ROC, test set fold ",fold))
-    text(.8,0,labels = paste0("AUC = ",riskroc$auc))
-    dev.off()
-  }
-  ##save fold info and compare
-  ##threshold for max sens/spec
+  ###TODO OR do we somewhere here let caret do the grid search and folding
+  tctrl = trainControl(method = 'repeatedcv',
+                       number = 10,
+                       repeats = 10,
+                       search = "grid",
+                       verboseIter = T,
+                       allowParallel = T)
+  
+  grid = expand.grid(C = c(0:3)^2*.25,
+                     sigma = c(0:3)^2*5.114885e-05)
+  
+  machines = train(residual, dx,
+                   method = "svmRadial",
+                   trControl = tctrl,
+                   tuneGrid = grid)
+  
+  
+  
+  # ###### SVM
+  # ## create folds
+  # foldindex = sample(1:numfolds,size = nrow(residual),replace=T)
+  # 
+  # sink(file = paste("./classifier_results/",tissue,"_SVM_cmatrix_",analysislabel,".txt", sep = ""))
+  # sink()
+  # 
+  # machines = list()
+  # results = list()
+  # eachdx = list()
+  # cmatrices = list()
+  # for(fold in 1:numfolds){
+  #   cat("\nPerforming SVM for fold:",fold,"\n")
+  #   ##split training and test
+  #   trainindex = which(foldindex != fold)
+  #   train = residual[trainindex,]
+  #   test = residual[-trainindex,]
+  #   traindx = dx[trainindex]
+  #   testdx = dx[-trainindex]
+  #   eachdx[[fold]] = testdx
+  #   
+  #   machine = svm(traindx ~.,data = train,
+  #                 probability = T, scale = F)
+  #   machines[[fold]] = machine
+  #   
+  #   ## run on training data
+  #   trainresult = predict(machine, train, decision.values = T, probability = T)
+  #   
+  #   ## test
+  #   result = predict(machine, test, decision.values = T, probability = T)
+  #   results[[fold]] = result
+  #   
+  #   cmatrix = confusionMatrix(result,testdx,positive="MCI")
+  #   cmatrices[[fold]] = cmatrix 
+  #   print(cmatrix)
+  #   sink(file = paste("./classifier_results/",tissue,"_SVM_cmatrix_",analysislabel,".txt", sep = ""), append = TRUE)
+  #   cat("SVM fold",fold)
+  #   print(cmatrix)
+  #   sink()
+  # 
+  #   pr = prcomp(x)
+  #   pca = data.frame(pr$x)
+  #   png(file = paste("./QCplots/",tissue,"_SVM_PCAtest_",analysislabel,"_fold_",fold,".png", sep = ""),
+  #       res = 300, units = "in", height = 8, width = 8)
+  #   plot(pca$PC1 ~ pca$PC2)
+  #   dev.off()
+  #   
+  #   ## ROC for test and train for this fold
+  #   probs = attributes(result)$probabilities
+  #   probs = probs[,1]
+  #   png(file = paste("./QCplots/",tissue,"_SVM_",analysislabel,"_test_ROC_fold",fold,".png", sep = ""),
+  #       res = 300, units = "in", height = 8, width = 8)
+  #   riskroc = roc(response = testdx, predictor = probs)
+  #   plot(riskroc,main=paste0("SVM test set ROC, fold ",fold))
+  #   text(.8,0,labels = paste0("AUC = ",riskroc$auc))
+  #   dev.off()
+  # 
+  #   trainprobs = attributes(trainresult)$probabilities
+  #   trainprobs = trainprobs[,1]
+  #   png(file = paste("./QCplots/",tissue,"_SVM_",analysislabel,"_train_ROC_fold",fold,".png", sep = ""),
+  #       res = 300, units = "in", height = 8, width = 8)
+  #   riskroc = roc(response = traindx, predictor = trainprobs)
+  #   plot(riskroc,main=paste0("SVM training set ROC, fold ",fold))
+  #   text(.8,0,labels = paste0("AUC = ",riskroc$auc))
+  #   dev.off()
+  # }
+  # ##save fold info
+  # ## get average auc test/train
+  # ## get max sens/spec
+  # ## draw test combined roc curves and write average auc on it
+  # ## draw train combined roc curves and write average auc on it
+  # ##threshold for max sens/spec
+  
+
+  
+  ## TODO do final training with best parameters
+  ## roc/auc for full training set
+  
+  ##TODO compare to validation set
+  ## run on the validation set
+  ## make roc curve with average auc on it
+  ## max sens/spec
 }

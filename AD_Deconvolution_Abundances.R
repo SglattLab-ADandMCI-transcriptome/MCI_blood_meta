@@ -109,6 +109,7 @@ for (tissue in tissues){
     
     ######### this part is half finished/half broken and i'm not sure what i want to do with it
     ######### but I don't just want to delete it yet
+    #### TODO
     # cat("\nGenerating surrogate variables and confusion matrix")
     # svobj = NULL
     # foo = exprs(exprs)
