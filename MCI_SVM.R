@@ -99,15 +99,17 @@ for (tissue in tissues){
   
   
   ###TODO OR do we somewhere here let caret do the grid search and folding
+  ## TODO we need some ranking and selection here?
+  ## fsstats in exprso
   tctrl = trainControl(method = 'repeatedcv',
-                       number = 10,
-                       repeats = 10,
+                       number = 5,
+                       repeats = 5,
                        search = "grid",
                        verboseIter = T,
                        allowParallel = T)
   
-  grid = expand.grid(C = c(0:3)^2*.25,
-                     sigma = c(0:3)^2*5.114885e-05)
+  grid = expand.grid(C = c(0:3)^2*.25, ## maybe 10^-3:3?
+                     sigma = c(0:3)^2*5.114885e-05) ## maybe .1 to 10?
   
   machines = train(residual, dx,
                    method = "svmRadial",
