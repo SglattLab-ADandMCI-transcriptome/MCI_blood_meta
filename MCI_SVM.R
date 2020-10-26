@@ -93,28 +93,46 @@ for (tissue in tissues){
   resfit = lmFit(y, design)
   residual = resid(resfit,y)
   residual = data.frame(t(residual))
-  genes = rownames(residual)
+  genes = names(residual)
   
     
   
   
   ###TODO OR do we somewhere here let caret do the grid search and folding
   ## TODO we need some ranking and selection here?
-  ## fsstats in exprso
+  ## fsstats in exprso or RFE in caret
+  rfectl = rfeControl(functions = caretFuncs,
+                      method = "repeatedcv",
+                      repeats = 5,
+                      allowParallel = TRUE,
+                      verbose = TRUE)
+  
+  profile = rfe(x = residual,
+                y = dx,
+                method = "svmRadial",
+                sizes = c(10,20,30,50,100),
+                rfeControl = rfectl)
+  
+  
   tctrl = trainControl(method = 'repeatedcv',
                        number = 5,
                        repeats = 5,
                        search = "grid",
-                       verboseIter = T,
-                       allowParallel = T)
+                       allowParallel = TRUE,
+                       # savePredictions = "all",
+                       verboseIter = TRUE)
   
   grid = expand.grid(C = c(0:3)^2*.25, ## maybe 10^-3:3?
                      sigma = c(0:3)^2*5.114885e-05) ## maybe .1 to 10?
   
-  machines = train(residual, dx,
+  # machines = train(x = residual,
+  machines = train(x = subset, ## TODO put back to residual or RFE stuff
+                   y = dx,
                    method = "svmRadial",
+                   # classProbs = TRUE,
                    trControl = tctrl,
-                   tuneGrid = grid)
+                   tuneGrid = grid,
+                   verboseIter = TRUE)
   
   
   
@@ -191,6 +209,9 @@ for (tissue in tissues){
   # ## draw train combined roc curves and write average auc on it
   # ##threshold for max sens/spec
   
+  trainpreds = predict.train(machines)
+  confusionMatrix(as.factor(dx),trainpreds)
+  trainprobs = predict.train(machines, type="prob")
 
   
   ## TODO do final training with best parameters

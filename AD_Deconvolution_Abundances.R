@@ -9,6 +9,8 @@ covariateslist = c("FACTOR_dx", "FACTOR_sex", "FACTOR_age","FACTOR_race")
 require(data.table)
 require(plyr)
 require(ggplot2)
+require(sva)
+require(corrplot)
 
 source("~/psychgene/CIBERSORT/CIBERSORT.R")
 
@@ -107,36 +109,49 @@ for (tissue in tissues){
     fwrite(coefs,file = paste("./deconvolution/",tissue,"_deconvolution_lm_",study,".csv", sep=""), sep=",")
     
     
-    ######### this part is half finished/half broken and i'm not sure what i want to do with it
-    ######### but I don't just want to delete it yet
-    #### TODO
-    # cat("\nGenerating surrogate variables and confusion matrix")
-    # svobj = NULL
-    # foo = exprs(exprs)
+    cat("\nGenerating surrogate variables and confusion matrix\n")
+    svobj = NULL
+    foo = data.frame(as.numeric(t(smallData[-1,-1])))
+    predictors = data.frame(smallCovs[,c(2:5)])
+    ages = as.numeric(predictors$FACTOR_age)
+    predictors = data.frame(lapply(predictors, as.factor))
+    predictors = data.frame(lapply(predictors, as.numeric))
+    predictors$FACTOR_age = ages
+    
+    abs = abundances[,c(1:22)]
+    csum = colSums(abs)
+    csum = which(csum == 0)
+    if(length(csum)>0){abs = abs[,-csum]}
+    
+    # predictors = data.frame(predictors,abs)
+    predictors = data.frame(predictors$FACTOR_dx,abs)
+    
+    # mod = model.matrix(~ ., data = predictors)
+    # nsv = num.sv(foo,mod,method = "leek")
     # svdf = data.frame(NULL)
-    # bar = try(num.sv(foo,mod, method = 'leek'))
-    # if(class(bar) != 'try-error'){
-    #   svobj = sva(foo,mod, n.sv = bar)
-    #   svdf = as.data.frame(svobj$sv)
-    # }
-    # 
-    # if(ncol(svdf) > 0){
-    #   colnames(svdf) = paste("SV",1:ncol(svdf), sep = "")
-    #   predictors = data.frame(predictors, svdf)
-    # 
-    #   wb.coef = wb.coef[,colSums(wb.coef)>0]
-    #   cors = cor(data.frame(svdf, wb.coef),use='pairwise.complete.obs')
-    # 
-    #   png(paste("./QCplots/",tissue,"_deconvolution_SVDF",paste("_", study_id[[i]]),".png", sep =""), res=300,units="in",height=6,width=6)
-    #   corrplot::corrplot(cors, tl.col = 'black', number.cex = .5,
-    #                      main = paste(study_id[[i]],"deconvolution. Tissue:", datExprTissue$FACTOR_tissue[which(datExprTissue$FACTOR_studyID == study_id[[i]])[1]]),
-    #                      mar=c(0,0,3,0),
-    #                      order='hclust',method='color', addCoef.col = "black",
-    #                      addrect = 3, rect.lwd = 5,
-    #                      rect.col = 'black', outline = T,
-    #                      tl.srt = 45, tl.cex = 0.75)
-    #   dev.off()
-    # }
+    # svobj = sva(foo,mod)
+    # svdf = as.data.frame(svobj$sv)
+
+    
+    ### TODO really do need SVs here, even if I have to make them without the\
+    ### other vars (and just include them in the graph)
+    
+    cors = cor(predictors,use='pairwise.complete.obs')
+
+    png(paste("./QCplots/",tissue,"_deconvolution_SVDF","_", study,".png", sep =""), res=300,units="in",height=6,width=6)
+    corrplot::corrplot(cors, tl.col = 'black', number.cex = .5,
+                       main = paste(study,"deconvolution"),
+                       mar=c(0,0,3,0),
+                       order='hclust',method='color', addCoef.col = "black",
+                       addrect = 3, rect.lwd = 5,
+                       rect.col = 'black', outline = T,
+                       tl.srt = 45, tl.cex = 0.75)
+    dev.off()
+    
+    
+    
+    
+    
   }
   
   

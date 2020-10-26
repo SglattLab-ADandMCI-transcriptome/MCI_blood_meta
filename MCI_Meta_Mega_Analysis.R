@@ -11,8 +11,6 @@ tissues = c("whole_blood")
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
-## TODO deconvolution. get abundances in other script, turn into PCs/whatever here
-
 ## TODO unknown and other race to NA?  and/or impute?
 
 # load these packages (install if needed)
@@ -154,8 +152,7 @@ for(tissue in tissues){
     if(length(rowmis) > 0){x = x[-rowmis]; y = y[-rowmis]}
     
     # Model matrix (basic)
-    ## TODO this needs to be moved to the top or detected
-    PredListNames = paste('FACTOR_', c("dx", "sex", "age","race"), collapse= "|", sep="")
+    PredListNames = paste(covariateslist, collapse= "|", sep="")
     predictors = x[,grep(PredListNames, colnames(x))]
     predictors = data.frame(predictors)
     
