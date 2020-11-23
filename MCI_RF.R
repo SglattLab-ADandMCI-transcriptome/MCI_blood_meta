@@ -1,8 +1,9 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
-## SVM for MCI blood
+## RF for MCI blood
 set.seed(13210)
 
 ## TODO cuda and big grid ????
+## todo make not svm
 
 analysislabel = "MCI"
 caselabel = "MCI"

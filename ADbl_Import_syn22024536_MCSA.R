@@ -19,6 +19,7 @@ genes = data$GeneName[-64254]
 Exprs = data[-64254,-c(1:7)]
 names = names(Exprs)
 Exprs = cpm(Exprs,log=F)
+Exprs = data.frame(Exprs)
 
 cat("Filtering genes with less than", filterCPM, "CPM in",
     filterPercent*100, "percent or more of subjects\n")
@@ -31,8 +32,10 @@ for(i in 1:nrow(Exprs)){
   }
 }
 filtered = which(filtered)
-Exprs = Exprs[-filtered,]
-genes = genes[-filtered]
+if(length(filtered) > 0){
+  Exprs = Exprs[-filtered,]
+  genes = genes[-filtered]
+}
 
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)

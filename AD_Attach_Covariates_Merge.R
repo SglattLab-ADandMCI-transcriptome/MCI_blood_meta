@@ -43,7 +43,9 @@ dupav <- function(x) {
     }
   }
   print(paste("number of names with duplicates:",foo))
-  x = x[-todrop,,drop=FALSE] #drop=FALSE just in case we're left with only one nonduplicate column
+  if(length(todrop) > 0){
+    x = x[-todrop,,drop=FALSE] #drop=FALSE just in case we're left with only one nonduplicate column
+  }
   x = rbind(x,toadd)
   gc()
   return(x)

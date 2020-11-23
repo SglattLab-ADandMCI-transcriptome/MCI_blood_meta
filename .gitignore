@@ -23,3 +23,4 @@ classifier_results
 deconvolution
 CIBERSORT-Results.txt
 *.RData
+WGCNA_results

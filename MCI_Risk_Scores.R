@@ -44,8 +44,11 @@ for (tissue in tissues){
   design = model.matrix( ~ ., predictors)
   y = data.frame(t(data[,-grep("FACTOR_",names(data))]))
   names(y) = data$FACTOR_sampleID
-  y = y[,-which(rowSums(is.na(predictors)) > 0)]
-  predictors = predictors[-which(rowSums(is.na(predictors)) > 0),]
+  badPreds = which(rowSums(is.na(predictors)) > 0)
+  if(length(badPreds)>0){
+    predictors = predictors[-badPreds,]
+    y = y[,-badPreds]
+  }
   y = y[which(rowSums(is.na(y))<1),]
   lowvar = apply(y,1,var)
   fit = lmFit(y, design)
