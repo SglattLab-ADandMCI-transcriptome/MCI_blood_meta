@@ -1,6 +1,6 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
 
-## WGCNA for MCI blood studies
+## WGCNA network preservation analysis for MCI blood studies
 ## GCH
 
 require(data.table)
@@ -15,8 +15,8 @@ require(org.Hs.eg.db)
 require(GO.db)
 require(reactome.db)
 
-Wfolder = "./WGCNA_results"
-Pfolder = "./WGCNA_results"
+Wfolder = "./WGCNA_npa_results"
+Pfolder = "./WGCNA_npa_results"
 
 if(!dir.exists(Wfolder)){
   dir.create(Wfolder)
@@ -78,6 +78,8 @@ rownames(datExpr) = samples
 # rownames(datExpr) = samples
 #
 # cat("\nWGCNA genes:",length(genes),"\n")
+
+##TODO duplicate or loop this to get the 2 networks
 
 ## one-step automated gene network analysis
 # 1. find optimal soft-threshold power for network construction
