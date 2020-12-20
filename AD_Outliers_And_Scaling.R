@@ -90,12 +90,14 @@ rawall$FACTOR_tissue = factor(foo)
 print(table(rawall$FACTOR_tissue))
 
 names(rawall)[which(names(rawall) == "Sample_ID")] = "FACTOR_sampleID"
+tissue = tissues[1]
 for(tissue in tissues){
   message("TISSUE: ",tissue)
   rawdat = rawall[which(rawall$FACTOR_tissue==tissue),]
   study_id = unique(rawdat$FACTOR_studyID)
   df_list = list()
   cat("Updating gene symbols.\n")
+  study = study_id[1]
   for(study in study_id){
     # read in the file and match genes
     cat(study,"\n")

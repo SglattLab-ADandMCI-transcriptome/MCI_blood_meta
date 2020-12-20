@@ -822,7 +822,7 @@ for(tissue in tissues){
   }
   binomStats_df = ldply(binomStats[-1])
   binomStats_df$rank = 1:nrow(binomStats_df) ## rank of gene expression p value
-  binomStats_df = binomStats_df[order(binomStats_df$p.value,decreasing=F),] ## now sort by binomail test p value
+  binomStats_df = binomStats_df[order(binomStats_df$p.value,decreasing=F),] ## now sort by binomial test p value
   binomStats_df$label = NA
   binomStats_df$label[[1]] = paste("p = ",format(binomStats_df$p.value[[1]],digits=2,scientific=T),sep="")
   binomStats_df = binomStats_df[order(binomStats_df$rank,decreasing=F),]
@@ -840,6 +840,8 @@ for(tissue in tissues){
     geom_hline(aes(yintercept = table(direction)[[(dirAll+3)/2]]/length(direction)), linetype=2,col='red')
   )
   dev.off()
+  
+  fwrite(binomStats_df,paste0(metafolder,"/",tissue,"_",analysislabel,"_meta_binomStats.csv"),row.names=T)
   
   gc()
   

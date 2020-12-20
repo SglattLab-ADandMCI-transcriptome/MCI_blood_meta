@@ -47,22 +47,28 @@ datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
 
-## run goodsamplesgenes to ensure suitability of samples and genes
-cat("\nRunning GoodSamplesGenes.")
-gsg = goodSamplesGenes(datExpr, verbose = 3);
-bad = c("Bad Genes: ",names(datExpr)[!gsg$goodGenes],"\n",
-        "Bad Samples: ",rownames(datExpr)[!gsg$goodSamples])
-# print(bad)
-cat("\n",length(names(datExpr)[!gsg$goodGenes]),"bad genes and",
-    length(rownames(datExpr)[!gsg$goodSamples]),"bad samples.\n")
-cat("\nWriting bad samples and genes to file.\n")
-write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed.txt",sep=""))
+datCTL = datExpr[which(phenos$FACTOR_dx == "CTL"),]
+datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
 
-datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
-genes = genes[gsg$goodGenes]
-samples = samples[gsg$goodSamples]
-phenos = phenos[gsg$goodSamples,]
-rownames(datExpr) = samples
+multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
+
+## get ctl modules
+# ## run goodsamplesgenes to ensure suitability of samples and genes
+# cat("\nRunning GoodSamplesGenes.")
+# gsg = goodSamplesGenes(datExpr, verbose = 3);
+# bad = c("Bad Genes: ",names(datExpr)[!gsg$goodGenes],"\n",
+#         "Bad Samples: ",rownames(datExpr)[!gsg$goodSamples])
+# # print(bad)
+# cat("\n",length(names(datExpr)[!gsg$goodGenes]),"bad genes and",
+#     length(rownames(datExpr)[!gsg$goodSamples]),"bad samples.\n")
+# cat("\nWriting bad samples and genes to file.\n")
+# write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed.txt",sep=""))
+# 
+# datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
+# genes = genes[gsg$goodGenes]
+# samples = samples[gsg$goodSamples]
+# phenos = phenos[gsg$goodSamples,]
+# rownames(datExpr) = samples
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0
@@ -79,8 +85,6 @@ rownames(datExpr) = samples
 #
 # cat("\nWGCNA genes:",length(genes),"\n")
 
-##TODO duplicate or loop this to get the 2 networks
-
 ## one-step automated gene network analysis
 # 1. find optimal soft-threshold power for network construction
 cat("\nFinding soft threshold...\n")
@@ -88,7 +92,7 @@ cat("\nFinding soft threshold...\n")
 
 powers = c(c(1:10), seq(from = 12, to=30, by=2))
 
-sft = pickSoftThreshold(datExpr,
+sft = pickSoftThreshold(datCTL,
                         powerVector = powers,
                         corFnc="bicor",
                         networkType="signed",
@@ -115,7 +119,7 @@ png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width
 dev.off()
 
 cat("\nConstructing adjacency and assigning modules.\n")
-adjacencyPre = adjacency((datExpr),
+adjacencyPre = adjacency(datCTL,
                          power=14,  #A Power used to build a consensus network
                          type="signed")
 diag(adjacencyPre)=0
@@ -146,14 +150,14 @@ table(modulesPRE)
 
 #Check to see if network modules can be cut and merged...
 cat("Calculating potential eigengenes.\n")
-MEList = moduleEigengenes(datExpr, colors=modulesPRE)
+MEList = moduleEigengenes(datCTL, colors=modulesPRE)
 MEs=MEList$eigengenes
 MEDiss = 1-cor(MEs, use='p')
 METree = hclust(as.dist(MEDiss), method ="average")
 
 # 4.one-step automated network construction
 cat("Constructing network.\n")
-net = blockwiseModules(datExpr,
+net = blockwiseModules(datCTL,
                        power = sft.power,
                        networkType = "signed",
                        deepSplit= deepSplit,
@@ -174,20 +178,9 @@ net = blockwiseModules(datExpr,
                        maxBlockSize = 5000)
 
 # 5. save the network to a .Rdata file for future use
-saveRDS(net, file = paste(Wfolder,"/WGCNA.Rdata",sep=""))
+saveRDS(net, file = paste(Wfolder,"/WGCNA_CTL.Rdata",sep=""))
 
-# save the expression matrix for handoff
-foo = as.numeric(substr(names(net$MEs),3,6))
-baz = net$MEs
-baz = baz[,order(foo)]
-#don't forget to explicitly save rownames because the author of data.table had his
-#grandma and dog run over by a rowname and now he hates them
-fwrite(baz,paste0(Wfolder,"/WGCNA_eigengene_espression.txt"),row.names=T)
-bax = data.frame(names(baz),labels2colors(c(0:(length(foo)-1))))
-names(bax) = c("index","color")
-fwrite(bax,paste0(Wfolder,"/WGCNA_eigengene_indices.txt"))
-
-net = readRDS(paste(Wfolder,"/WGCNA.Rdata",sep=""))
+net = readRDS(paste(Wfolder,"/WGCNA_CTL.Rdata",sep=""))
 
 # 6. extract network meta-data and eigengenes
 moduleLabels = net$colors
@@ -213,7 +206,7 @@ dev.off()
 module = list()
 colors = unique(moduleColors)
 for(y in 1:length(colors)){
-  genesInModule = colnames(datExpr)[which(moduleColors %in% colors[[y]])]
+  genesInModule = colnames(datCTL)[which(moduleColors %in% colors[[y]])]
   module[[y]] = data.frame(color = colors[[y]], label = unique(net$colors)[[y]], symbol = genesInModule)
 }
 module = ldply(module)
@@ -228,6 +221,243 @@ fwrite(data.table(module),
        quote = F, row.names = F, sep = "\t")
 
 module = fread(paste(Wfolder,"/wgcna_module-membership.txt", sep=""),data.table=F)
+
+
+
+## MCI module network
+# 1. find optimal soft-threshold power for network construction
+cat("\nFinding soft threshold...\n")
+# colnames(datExpr) = convertKeys(colnames(datExpr))
+
+powers = c(c(1:10), seq(from = 12, to=30, by=2))
+
+sft = pickSoftThreshold(datMCI,
+                        powerVector = powers,
+                        corFnc="bicor",
+                        networkType="signed",
+                        verbose = 1)
+
+sft0 = sft
+
+sft0
+
+png(paste(Pfolder,"/softthreshold_MCI.png",sep=""),res=300,units="in",height=6,width=6)
+
+par(mfrow=c(1,1))
+par(mar = c(5.1, 5.1,5.1,2.1))
+plot(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
+     las = 1, cex.lab = 1.1, cex.axis = 1.1,
+     xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
+     type="n",main=paste("Scale independence"))
+text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
+     labels=powers,col="red")
+abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
+# plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
+#      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
+# text(sft0$fitIndices[,1],sft0$fitIndices[,5],labels=powers,col="red")
+dev.off()
+
+cat("\nConstructing adjacency and assigning modules.\n")
+adjacencyPre = adjacency(datMCI,
+                         power=14,  #A Power used to build a consensus network
+                         type="signed")
+diag(adjacencyPre)=0
+dissTOMPre   = 1-TOMsimilarity(adjacencyPre, TOMType="signed")
+geneTreePre  = hclust(as.dist(dissTOMPre), method="average")
+
+# MODULE ASSIGNMENTS
+mColorh=NULL
+for (ds in 0:4){
+  tree = cutreeHybrid(dendro = geneTreePre, pamStage=FALSE,
+                      minClusterSize = (25), cutHeight = 0.9999,
+                      deepSplit = ds, distM = dissTOMPre)
+  mColorh=cbind(mColorh,labels2colors(tree$labels));
+}
+
+pdf(paste(Wfolder,"/WGCNA_Consensus_DeepSplit_MCI.pdf",sep=""), height=10,width=25);
+plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expression Network",dendroLabels=FALSE);
+dev.off()
+
+# 3. set parameters for network algorithm
+sft.power = 12; ##
+deepSplit = 2;
+minModuleSize = 30;
+
+#SET DEEP SPLIT CHOICE AND NAME OUR COLORS
+modulesPRE =  mColorh[,deepSplit]
+table(modulesPRE)
+
+#Check to see if network modules can be cut and merged...
+cat("Calculating potential eigengenes.\n")
+MEList = moduleEigengenes(datMCI, colors=modulesPRE)
+MEs=MEList$eigengenes
+MEDiss = 1-cor(MEs, use='p')
+METree = hclust(as.dist(MEDiss), method ="average")
+
+# 4.one-step automated network construction
+cat("Constructing MCI network.\n")
+netMCI = blockwiseModules(datMCI,
+                       power = sft.power,
+                       networkType = "signed",
+                       deepSplit= deepSplit,
+                       TOMType = "signed",
+                       minModuleSize = minModuleSize,
+                       minCoreKME = 0.5,
+                       minCoreKMESize = minModuleSize/3,
+                       minKMEtoStay=0,
+                       reassignThreshold = 1e-6,
+                       mergeCutHeight = 0.25,
+                       detectCutHeight = 0.995,
+                       numericLabels = TRUE,
+                       corType = 'bicor',
+                       pamRespectsDendro = FALSE,
+                       pamStage = TRUE,
+                       saveTOMs = TRUE,
+                       verbose = 3,
+                       maxBlockSize = 5000)
+
+# 5. save the network to a .Rdata file for future use
+saveRDS(netMCI, file = paste(Wfolder,"/WGCNA_MCI.Rdata",sep=""))
+
+# 6. extract network meta-data and eigengenes
+moduleLabelsMCI = netMCI$colors
+moduleColorsMCI = labels2colors(netMCI$colors)
+foo = order(as.numeric(substr(names(netMCI$MEs),3,stop=4)))
+MEsMCI = netMCI$MEs[,foo]
+
+metadataMCI = data.frame(colors = moduleColorsMCI, labels = paste("ME",netMCI$colors, sep=""))
+metadataMCI = metadataMCI[!duplicated(metadataMCI$colors), ]
+
+mergedColorsMCI = labels2colors(netMCI$colors)
+
+# PLOT DENDROGRAM
+png(paste(Pfolder,"/wgcna_dendrogram_MCI.png",sep=""), res=300, units="in",height = 5.5, width = 8)
+plotDendroAndColors(netMCI$dendrograms[[1]], las = 1, cex.axis = 1.2, cex.lab = 1.1,
+                    mergedColorsMCI[net$blockGenes[[1]]],
+                    "Module colors", cex.colorLabels = 1,
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05)
+dev.off()
+
+# SAVE MODULE MEMBERSHIP
+moduleMCI = list()
+colors = unique(moduleColorsMCI)
+for(y in 1:length(colors)){
+  genesInModule = colnames(datMCI)[which(moduleColorsMCI %in% colors[[y]])]
+  moduleMCI[[y]] = data.frame(color = colors[[y]], label = unique(net$colors)[[y]], symbol = genesInModule)
+}
+moduleMCI = ldply(moduleMCI)
+
+mcounts = data.frame(table(moduleMCI$label))
+mcounts = data.frame(c(0:(nrow(mcounts)-1)),labels2colors(c(0:(nrow(mcounts)-1))),mcounts$Freq)
+names(mcounts) = c("ME","color","frequency")
+fwrite(mcounts,file = paste0(Wfolder,"/wgcna_module-membership_counts_MCI.txt"))
+
+fwrite(data.table(moduleMCI),
+       file = paste(Wfolder,"/wgcna_module-membership_MCI.txt", sep=""),
+       quote = F, row.names = F, sep = "\t")
+
+moduleMCI = fread(paste(Wfolder,"/wgcna_module-membership_MCI.txt", sep=""),data.table=F)
+
+
+
+
+
+
+
+
+
+
+
+
+## network preservation analysis part
+multiColor = list(CTL = module$color, MCI = moduleMCI$color)
+mp = modulePreservation(multiExpr, multiColor,
+                        referenceNetworks = 1,
+                        networkType = "signed",
+                        verbose = 3)
+
+saveRDS(mp, file = paste0(Wfolder,"/modulePreservation.RData"))
+
+mp = readRDS(paste0(Wfolder,"/modulePreservation.RData"))
+
+## TODO this is just copypasted from a tutorial, i need to figure out what i want
+## TODO something with the labels, i should recreate this in ggplot
+sink(paste0(Pfolder,"/Preservation.txt"))
+ref = 1
+test = 2
+statsObs = cbind(mp$quality$observed[[ref]][[test]][, -1],
+                 mp$preservation$observed[[ref]][[test]][, -1])
+statsZ = cbind(mp$quality$Z[[ref]][[test]][, -1], mp$preservation$Z[[ref]][[test]][, -1]);
+
+print( cbind(statsObs[, c("medianRank.pres", "medianRank.qual")],
+             signif(statsZ[, c("Zsummary.pres", "Zsummary.qual")], 2)) )
+sink()
+
+png(paste(Pfolder,"/Preservation.png",sep=""), res=300, units="in",height = 5.5, width = 11)
+# Module labels and module sizes are also contained in the results
+modColors = rownames(mp$preservation$observed[[ref]][[test]])
+moduleSizes = mp$preservation$Z[[ref]][[test]][, 1];
+# leave grey and gold modules out
+plotMods = !(modColors %in% c("grey", "gold"));
+# Text labels for points
+text = modColors[plotMods];
+# Auxiliary convenience variable
+plotData = cbind(mp$preservation$observed[[ref]][[test]][, 2], mp$preservation$Z[[ref]][[test]][, 2])
+# Main titles for the plot
+mains = c("Preservation Median rank", "Preservation Zsummary");
+# Start the plot
+# sizeGrWindow(10, 5);
+par(mfrow = c(1,2))
+par(mar = c(4.5,4.5,2.5,1))
+for (p in 1:2){
+  min = min(plotData[, p], na.rm = TRUE);
+  max = max(plotData[, p], na.rm = TRUE);
+  # Adjust ploting ranges appropriately
+  if (p==2)
+  {
+    if (min > -max/10) min = -max/10
+    ylim = c(min - 0.1 * (max-min), max + 0.1 * (max-min))
+  } else
+    ylim = c(max + 0.1 * (max-min), min - 0.1 * (max-min))
+  plot(moduleSizes[plotMods], plotData[plotMods, p], col = 1, bg = modColors[plotMods], pch = 21,
+       main = mains[p],
+       cex = 2.4,
+       ylab = mains[p], xlab = "Module size", log = "x",
+       ylim = ylim,
+       xlim = c(10, 2000), cex.lab = 1.2, cex.axis = 1.2, cex.main =1.4)
+  labelPoints(moduleSizes[plotMods], plotData[plotMods, p], text, cex = 1, offs = 0.1);
+  # For Zsummary, add threshold lines
+  if (p==2)
+  {
+    abline(h=0)
+    abline(h=2, col = "blue", lty = 2)
+    abline(h=10, col = "darkgreen", lty = 2)
+  }
+}
+# If plotting into a file, close it
+dev.off();
+
+## save preservation statistics
+for(i in 1:4){
+  thing = mp$preservation[i][[1]][[1]][[2]]
+  thingname = names(mp$preservation[i])
+  fwrite(thing,paste0(Pfolder,"/Preservation_Statistics_",thingname,".csv"),row.names=T)
+}
+
+## create and save overlap table
+## TODO kME style
+overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
+odf = data.frame(overlap$countTable)
+fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
+opdf = data.frame(overlap$pTable)
+fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
+
+# overlapKME = overlapTableUsingKME()
+
+
+
+stop("stuff after here has more than one group")
 
 ## Generate plots for differential expresison among groups
 cat("Plotting associations.\n")

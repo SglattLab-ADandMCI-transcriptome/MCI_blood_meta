@@ -24,3 +24,5 @@ deconvolution
 CIBERSORT-Results.txt
 *.RData
 WGCNA_results
+WGCNA_npa_results
+namestest.txt

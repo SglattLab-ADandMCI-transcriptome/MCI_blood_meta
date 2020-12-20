@@ -11,12 +11,12 @@ studyname = "ROSMAP"
 
 cat("Reading raw count data from syn22024498 aka ROSMAP\n")
 
-data = fread(paste0(rawlocation,"blood/syn22024498/S598_ExpMatrix_9904genes.txt"), data.table=F)
+# data = fread(paste0(rawlocation,"blood/syn22024498/S598_ExpMatrix_9904genes.txt"), data.table=F)
+data = fread(paste0(rawlocation,"blood/syn22024498/S615_RawCounts_60715genes.txt"), data.table=F)
 rawcovs = fread(paste0(rawlocation,"blood/syn22024498/ROSMAP_clinical.csv"), data.table=F)
 rawages = fread(paste0(rawlocation,"blood/syn22024498/ROSMAP_biospecimen_metadata.csv"), data.table=F)
 binfo = fread(paste0(rawlocation, "blood/syn22024498/S615_BatchInfo.txt"))
 
-## this is reading in a line of NA at the bottom, 64254
 genes = data$ID
 names = names(data)
 Exprs = data[,-1]  ## CPM wants rows as genes
@@ -27,6 +27,7 @@ cat("Filtering genes with less than", filterCPM, "CPM in",
     filterPercent*100, "percent or more of subjects\n")
 filtered = logical()
 for(i in 1:nrow(Exprs)){
+  cat("\r",i,"of",nrow(Exprs),"genes")
   filtered[i] = FALSE
   quux = Exprs[i,]<filterCPM
   if(sum(quux) >= filterPercent*ncol(Exprs)){
@@ -156,3 +157,4 @@ names(Exprs) = c("PROBEID",ages$number)
 rm(data)
 rm(rawcovs)
 rm(rawages)
+

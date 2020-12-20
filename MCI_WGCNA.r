@@ -174,17 +174,6 @@ net = blockwiseModules(datExpr,
 # 5. save the network to a .Rdata file for future use
 saveRDS(net, file = paste(Wfolder,"/WGCNA.Rdata",sep=""))
 
-# save the expression matrix for handoff
-foo = as.numeric(substr(names(net$MEs),3,6))
-baz = net$MEs
-baz = baz[,order(foo)]
-#don't forget to explicitly save rownames because the author of data.table had his
-#grandma and dog run over by a rowname and now he hates them
-fwrite(baz,paste0(Wfolder,"/WGCNA_eigengene_espression.txt"),row.names=T)
-bax = data.frame(names(baz),labels2colors(c(0:(length(foo)-1))))
-names(bax) = c("index","color")
-fwrite(bax,paste0(Wfolder,"/WGCNA_eigengene_indices.txt"))
-
 net = readRDS(paste(Wfolder,"/WGCNA.Rdata",sep=""))
 
 # 6. extract network meta-data and eigengenes
@@ -543,9 +532,18 @@ for( i in 1:length(sig_mods)){
   geneSetSize = lapply(msig.split, nrow)
   geneSetOut = universe - unlist(geneSetSize)
   
+  geneSetGenes = character()
+  for(q in 1:length(msig.split)){
+    doodad = unlist(msig.split[[q]][1])
+    doodad = doodad[doodad %in% gene_grab$symbol]
+    doodad = paste0(doodad,collapse = " ")
+    geneSetGenes[q] = doodad
+  }
+  
   # hypergeomtric p-values
   hypStats = data.frame(
     Module = sig_mods[[i]],
+    Genes = geneSetGenes,
     PATHWAY = names(msig.split),
     Population = universe, 
     Sample_success = unlist(overlaps),

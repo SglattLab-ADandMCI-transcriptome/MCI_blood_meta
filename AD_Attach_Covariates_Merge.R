@@ -87,3 +87,6 @@ for(i in 1:length(covfiles)){
 writethis = ldply(alldata)
 
 fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))
+
+## TODO check here for proper overlaps (4k thing)
+

@@ -1,8 +1,12 @@
 ## Import data from syn22024536 aka MCSA
 ## GCH
 
+## TODO bring in chunling's stuff
+## TODO combat
+
 require(data.table)
 require(edgeR)
+require(sva)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -10,13 +14,17 @@ studyname = "MCSA"
 
 cat("Reading raw count data from syn22024536 aka MCSA\n")
 
-data = fread(paste0(rawlocation,"blood/syn22024536/mcsa_rnaseq_rawcount.txt"), data.table=F)
+# data = fread(paste0(rawlocation,"blood/syn22024536/mcsa_rnaseq_rawcount.txt"), data.table=F)
+data = fread(paste0(rawlocation,"blood/syn22024536/MCSA_Data_20201210/S422_RawCounts_60715genes.txt"), data.table=F)
 rawcovs = fread(paste0(rawlocation,"blood/syn22024536/MCSA_individual_human_metadata.csv"), data.table=F)
 rawages = fread(paste0(rawlocation,"blood/syn22024536/MCSA_biospecimen_metadata.csv"), data.table=F)
+binfo = fread(paste0(rawlocation, "blood/syn22024536/MCSA_Data_20201210/S422_BatchInfo.txt"))
 
-## this is reading in a line of NA at the bottom, 64254
-genes = data$GeneName[-64254]
-Exprs = data[-64254,-c(1:7)]
+## original file has line of NA at the bottom, 64254
+# genes = data$GeneName[-64254]
+# Exprs = data[-64254,-c(1:7)]
+genes = data$ID
+Exprs = data[,-1]
 names = names(Exprs)
 Exprs = cpm(Exprs,log=F)
 Exprs = data.frame(Exprs)
@@ -25,6 +33,7 @@ cat("Filtering genes with less than", filterCPM, "CPM in",
     filterPercent*100, "percent or more of subjects\n")
 filtered = logical()
 for(i in 1:nrow(Exprs)){
+  cat("\r",i,"of",nrow(Exprs),"genes")
   filtered[i] = FALSE
   quux = Exprs[i,]<filterCPM
   if(sum(quux) >= filterPercent*ncol(Exprs)){
@@ -36,6 +45,24 @@ if(length(filtered) > 0){
   Exprs = Exprs[-filtered,]
   genes = genes[-filtered]
 }
+
+
+##COMBAT
+cat("COMBAT for known batch effects.\n")
+print("all(names(Exprs) %in% binfo$sName)")
+print(all(names(Exprs) %in% binfo$sName))
+foo = which(binfo$sName %in% names(Exprs))
+binfo = binfo[foo,]
+all(names(Exprs) == binfo$sName)
+batch = factor(binfo$run)
+
+Exprs = ComBat(Exprs,batch)
+
+
+
+
+
+
 
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
