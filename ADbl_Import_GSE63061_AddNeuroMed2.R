@@ -62,7 +62,7 @@ covs$FACTOR_race[grepl("Unknown",covs$FACTOR_race)] = "unknown"
 covs$FACTOR_race[grepl("Other",covs$FACTOR_race)] = "other"
 covs$FACTOR_race[grepl("British",covs$FACTOR_race)] = "white"
 covs$FACTOR_race[grepl("Carib",covs$FACTOR_race)] = "caribbean"
-covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole blood"
+covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole_blood"
 
 rm(translist)
 rm(probes)

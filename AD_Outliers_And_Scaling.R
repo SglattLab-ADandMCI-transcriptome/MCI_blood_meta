@@ -95,42 +95,10 @@ for(tissue in tissues){
   message("TISSUE: ",tissue)
   rawdat = rawall[which(rawall$FACTOR_tissue==tissue),]
   study_id = unique(rawdat$FACTOR_studyID)
-  df_list = list()
-  cat("Updating gene symbols.\n")
-  study = study_id[1]
-  for(study in study_id){
-    # read in the file and match genes
-    cat(study,"\n")
-    readIn = rawdat[which(rawdat$FACTOR_studyID == study),]
-    datExpr = readIn[,!grepl("FACTOR_", colnames(readIn))]
-    rownames(datExpr) = readIn$FACTOR_sampleID
-    
-    genes_in_data = colnames(datExpr)
-    genes_in_data = gsub("[.]", "-", genes_in_data)
-   
-    nomatch = genes_in_data[!genes_in_data %in% genes$SYMBOL]
-    nomatch_conv = select(org.Hs.eg.db, keys=as.character(nomatch), keytype='ALIAS', columns='ENTREZID')
-    nomatch_conv$updated_hgnc = select(org.Hs.eg.db, keys=as.character(nomatch_conv$ENTREZID), keytype='ENTREZID', columns='SYMBOL')$SYMBOL
-    nomatch_conv$mismatch = nomatch_conv$ALIAS == nomatch_conv$updated_hgnc
-    noentrez = nomatch_conv[is.na(nomatch_conv$ENTREZID), ]
-    
-    datExpr = datExpr[,!colnames(datExpr) %in% noentrez$SYMBOL]
-    datExpr = as.data.frame(t(datExpr))
-    datExpr = data.frame(SYMBOL = rownames(datExpr), datExpr,check.names=F)
-    names(datExpr) = c("SYMBOL",readIn$FACTOR_sampleID)
-    
-    df_list = c(df_list,list(datExpr))
-  }
-  cat("\nMerging.\n")
-  datAll = Reduce(function(x,y) merge(x,y,by='SYMBOL',all = TRUE), df_list)
+  datAll = rawdat[,!grepl("FACTOR_", colnames(rawdat))]
   dim(datAll)
-  rm(df_list)
+  # rm(df_list)
   
-  # cat("\nWriting merged numeric table to file.")
-  # if(!dir.exists("./data_for_analysis/")){ dir.create("./data_for_analysis/")}
-  # fwrite(datAll, file=paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),quote=F,row.names=F,sep="\t")
-  # # datAll = fread("./data_for_analysis/GeneExpression_allstudies.txt")
-  # 
   ### Bring in sample factors.
   cat("\nBringing in sample factors.")
   sf_list = list()
@@ -155,7 +123,7 @@ for(tissue in tissues){
   sfall = ldply(sf_list)
   
   head(sfall)
-  cat("nrow(sfall) == (ncol(datAll)-1)     ",nrow(sfall) == (ncol(datAll)-1))
+  cat("nrow(sfall) == (nrow(datAll))     ",nrow(sfall) == (nrow(datAll)))
   # 
   # cat("\nWriting merged factor table to file.\n")
   # fwrite(sfall, file=paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),quote=F,row.names=F,sep="\t")
@@ -165,10 +133,10 @@ for(tissue in tissues){
   cat("\nBinding factors with expression data.\n")
   # sfall$FACTOR_sampleID = gsub(" 1", ".1", sfall$FACTOR_sampleID)
   
-  rownames(datAll)=datAll$SYMBOL
-  datAll = datAll[,!colnames(datAll) %in% "SYMBOL"]
-  datAll = as.data.frame(t(datAll))
-  datAll = data.frame(FACTOR_sampleID = as.character(rownames(datAll)), datAll)
+  # rownames(datAll)=datAll$SYMBOL
+  # datAll = datAll[,!colnames(datAll) %in% "SYMBOL"]
+  # datAll = as.data.frame(t(datAll))
+  datAll = data.frame(FACTOR_sampleID = as.character(rawdat$FACTOR_sampleID), datAll)
   
   datExpr0 = merge(sfall, datAll, by='FACTOR_sampleID')
   

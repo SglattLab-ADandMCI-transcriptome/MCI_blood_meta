@@ -4,6 +4,7 @@
 require(data.table)
 require(edgeR)
 require(sva)
+require(biomaRt)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -152,6 +153,23 @@ all(foo[samplestosave] == ages$Sample_ID)
 genes = Exprs$PROBEID
 Exprs = Exprs[,c(1,samplestosave)]
 names(Exprs) = c("PROBEID",ages$number)
+
+
+## probeid from ensg to gene names
+mart = useMart("ensembl",dataset="hsapiens_gene_ensembl")
+bm = getBM(attributes=c('ensembl_gene_id_version', 'hgnc_symbol'), 
+           filters = 'ensembl_gene_id_version', 
+           values = Exprs$PROBEID, 
+           mart = mart)
+Exprs$PROBEID[which(!Exprs$PROBEID %in% bm$ensembl_gene_id_version)]
+newnames = Exprs$PROBEID
+for(q in 1:length(newnames)){
+  temp = bm$hgnc_symbol[which(bm$ensembl_gene_id_version == newnames[q])]
+  if(length(temp) >= 1 && temp != ""){
+    newnames[q] = temp[1]
+  }
+}
+Exprs$PROBEID = newnames
 
 
 rm(data)

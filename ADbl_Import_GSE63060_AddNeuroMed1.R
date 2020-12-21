@@ -46,7 +46,7 @@ names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race",
 covs$FACTOR_race[grepl("Western European",covs$FACTOR_race)] = "white"
 covs$FACTOR_race[grepl("Other Caucasian",covs$FACTOR_race)] = "white"
 covs$FACTOR_race[grepl("Unknown",covs$FACTOR_race)] = "unknown"
-covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole blood"
+covs$FACTOR_tissue[grepl("blood",covs$FACTOR_tissue)] = "whole_blood"
 
 
 #4856076038_D is not in the covs list, excluding.

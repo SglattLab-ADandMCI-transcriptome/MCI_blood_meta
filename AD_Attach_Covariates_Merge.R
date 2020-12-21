@@ -18,6 +18,8 @@ if(!dir.exists(covsfolder)){ dir.create(covsfolder)}
 
 require(data.table)
 require(plyr)
+require(org.Hs.eg.db)
+
 
 ## remove duplicates by averaging, do this after getting names
 dupav <- function(x) {
@@ -51,10 +53,38 @@ dupav <- function(x) {
   return(x)
 }
 
-cat("Now averaging duplicates and attaching covariates.\n")
+cat("Compiling gene symbols.\n")
+# https://www.gencodegenes.org/releases/22.html
+# get list of gene symbols
+genes = fread("./references/gencode.v22.annotation.gtf.gz",header=F,stringsAsFactors=FALSE)
+genes = data.frame(genes)
+genes = genes[genes$V3 %in% "gene", ]
+split = strsplit(genes$V9, "[; ]")
+split = lapply(split, function(x) x[[11]])
+symbols = unlist(split)
+
+extract_attributes <- function(gtf_attributes, att_of_interest){
+  att <- strsplit(gtf_attributes, "; ")
+  att <- gsub("\"","",unlist(att))
+  if(!is.null(unlist(strsplit(att[grep(att_of_interest, att)], " ")))){
+    return( unlist(strsplit(att[grep(att_of_interest, att)], " "))[2])
+  }else{
+    return(NA)}
+}
+
+genes$SYMBOL <- unlist(lapply(genes$V9, extract_attributes, "gene_name"))
+# names(genes)[names(genes) %in% "symbol"] = "SYMBOL"
+conv = select(org.Hs.eg.db, keys=as.character(genes$SYMBOL), keytype="SYMBOL", columns="ENTREZID")
+genes = merge(genes, conv, by='SYMBOL')
+genes = genes[!is.na(genes$ENTREZID), ]
+genes$width = abs(genes$V4 - genes$V5)
+genes = genes[order(genes$width, decreasing = T), ]
+genes = genes[!duplicated(genes$SYMBOL), ]
 
 covfiles = list.files(datafolder, "covariates.txt", full.names = T)
 datafiles = list.files(datafolder, "normalizedProbes.txt", full.names = T)
+
+cat("Now averaging duplicates and attaching covariates.\n")
 
 alldata = list()
 for(i in 1:length(covfiles)){
@@ -64,7 +94,31 @@ for(i in 1:length(covfiles)){
   covs = fread(covfiles[i],data.table=F)
   data = fread(datafiles[i],data.table=F)
   datanames = names(data)[-1]
+
+  ##update gene symbols
+  cat("Updating gene symbols.\n")
+  # read in the file and match genes
+  cat(studyID,"\n")
+  genes_in_data = data$PROBEID
+  genes_in_data = gsub("[.]", "-", genes_in_data)
   
+  nomatch = genes_in_data[!genes_in_data %in% genes$SYMBOL]
+  nomatch_conv = select(org.Hs.eg.db, keys=as.character(nomatch), keytype='ALIAS', columns='ENTREZID')
+  nomatch_conv$updated_hgnc = select(org.Hs.eg.db, keys=as.character(nomatch_conv$ENTREZID), keytype='ENTREZID', columns='SYMBOL')$SYMBOL
+  nomatch_conv$mismatch = nomatch_conv$ALIAS == nomatch_conv$updated_hgnc
+  noentrez = nomatch_conv[is.na(nomatch_conv$ENTREZID), ]
+
+  newnames = genes_in_data
+  for(q in 1:length(newnames)){
+    thing = nomatch_conv$updated_hgnc[which(nomatch_conv$ALIAS == newnames[q])]
+    if(length(thing) == 1){
+      newnames[q] = thing
+    }
+  }
+  cat("Updated",sum(!genes_in_data %in% newnames),"symbols.\n")
+  
+  data$PROBEID = newnames
+    
   data = dupav(data)
   probenames = data$PROBEID
   
@@ -86,7 +140,8 @@ for(i in 1:length(covfiles)){
 }
 writethis = ldply(alldata)
 
-fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))
+print(table(writethis$FACTOR_studyID,writethis$FACTOR_tissue))
+print(table(writethis$FACTOR_studyID,writethis$FACTOR_dx))
 
-## TODO check here for proper overlaps (4k thing)
+fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))
 

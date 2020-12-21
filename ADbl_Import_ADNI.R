@@ -114,7 +114,7 @@ foo[grep("than one",foo)] = "other"
 foo[grep("Alaskan",foo)] = "nativeamerican"
 eths = tolower(foo)
 
-covs = data.frame(IDs, Dx,genders,ages,eths,tissue = rep("whole blood",times=nrow(genders)))
+covs = data.frame(IDs, Dx,genders,ages,eths,tissue = rep("whole_blood",times=nrow(genders)))
 names(covs) = c("Sample_ID","FACTOR_dx","FACTOR_sex","FACTOR_age","FACTOR_race","FACTOR_tissue")
 
 

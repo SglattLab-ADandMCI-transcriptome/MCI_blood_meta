@@ -82,7 +82,7 @@ for(script in scripts){
   
   if(nrow(covs) > 0){
     # Write covariates to data file
-    cat("\nWriting covariates\n")
+    cat("Writing covariates\n\n")
     fwrite(covs,
            file = paste(NormOut,"/",studyname,"_covariates.txt", sep =""),
            quote = F, row.names = F, sep= "\t")}

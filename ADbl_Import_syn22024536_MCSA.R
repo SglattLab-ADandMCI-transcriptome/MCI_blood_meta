@@ -1,12 +1,10 @@
 ## Import data from syn22024536 aka MCSA
 ## GCH
 
-## TODO bring in chunling's stuff
-## TODO combat
-
 require(data.table)
 require(edgeR)
 require(sva)
+require(biomaRt)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
@@ -59,16 +57,30 @@ batch = factor(binfo$run)
 Exprs = ComBat(Exprs,batch)
 
 
-
-
-
-
-
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
 
 Exprs = data.frame(PROBEID = genes, Exprs)
+names = gsub("S","",names)
+names = gsub("$","_PAX",names)
 names(Exprs) = c("PROBEID",names)
+
+
+## probeid from ensg to gene names
+mart = useMart("ensembl",dataset="hsapiens_gene_ensembl")
+bm = getBM(attributes=c('ensembl_gene_id_version', 'hgnc_symbol'), 
+      filters = 'ensembl_gene_id_version', 
+      values = Exprs$PROBEID, 
+      mart = mart)
+Exprs$PROBEID[which(!Exprs$PROBEID %in% bm$ensembl_gene_id_version)]
+newnames = Exprs$PROBEID
+for(q in 1:length(newnames)){
+  temp = bm$hgnc_symbol[which(bm$ensembl_gene_id_version == newnames[q])]
+  if(length(temp) >= 1 && temp != ""){
+    newnames[q] = temp[1]
+  }
+}
+Exprs$PROBEID = newnames
 
 
 covs = data.frame(Sample_ID = rawcovs$individualID,
@@ -107,3 +119,4 @@ head(covs)
 rm(data)
 rm(rawcovs)
 rm(rawages)
+
