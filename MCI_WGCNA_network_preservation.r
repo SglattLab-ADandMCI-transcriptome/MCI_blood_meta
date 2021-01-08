@@ -94,6 +94,7 @@ powers = c(c(1:10), seq(from = 12, to=30, by=2))
 
 sft = pickSoftThreshold(datCTL,
                         powerVector = powers,
+                        RsquaredCut = .8,
                         corFnc="bicor",
                         networkType="signed",
                         verbose = 1)
@@ -112,6 +113,7 @@ png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width
        type="n",main=paste("Scale independence"))
   text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
        labels=powers,col="red")
+  text(15,.2,paste("Power used:",sft0$powerEstimate))
   abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
   # plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
   #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
@@ -120,7 +122,8 @@ dev.off()
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency(datCTL,
-                         power=14,  #A Power used to build a consensus network
+                         # power=14,  #A Power used to build a consensus network
+                         power = sft0$powerEstimate,
                          type="signed")
 diag(adjacencyPre)=0
 dissTOMPre   = 1-TOMsimilarity(adjacencyPre, TOMType="signed")
@@ -140,6 +143,7 @@ plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expr
 dev.off()
 
 # 3. set parameters for network algorithm
+sft.power = sft0$powerEstimate
 sft.power = 12; ##
 deepSplit = 2;
 minModuleSize = 30;
@@ -174,6 +178,7 @@ net = blockwiseModules(datCTL,
                        pamRespectsDendro = FALSE,
                        pamStage = TRUE,
                        saveTOMs = TRUE,
+                       saveTOMFileBase = "CTL",
                        verbose = 3,
                        maxBlockSize = 5000)
 
@@ -233,6 +238,7 @@ powers = c(c(1:10), seq(from = 12, to=30, by=2))
 
 sft = pickSoftThreshold(datMCI,
                         powerVector = powers,
+                        RsquaredCut = .8,
                         corFnc="bicor",
                         networkType="signed",
                         verbose = 1)
@@ -251,6 +257,7 @@ plot(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
      type="n",main=paste("Scale independence"))
 text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
      labels=powers,col="red")
+text(15,.2,paste("Power used:",sft0$powerEstimate))
 abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
 # plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
 #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
@@ -259,7 +266,8 @@ dev.off()
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency(datMCI,
-                         power=14,  #A Power used to build a consensus network
+                         # power=14,  #A Power used to build a consensus network
+                         power = sft0$powerEstimate,
                          type="signed")
 diag(adjacencyPre)=0
 dissTOMPre   = 1-TOMsimilarity(adjacencyPre, TOMType="signed")
@@ -279,6 +287,7 @@ plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expr
 dev.off()
 
 # 3. set parameters for network algorithm
+sft.power = sft0$powerEstimate
 sft.power = 12; ##
 deepSplit = 2;
 minModuleSize = 30;
@@ -313,11 +322,13 @@ netMCI = blockwiseModules(datMCI,
                        pamRespectsDendro = FALSE,
                        pamStage = TRUE,
                        saveTOMs = TRUE,
+                       saveTOMFileBase = "MCI",
                        verbose = 3,
                        maxBlockSize = 5000)
 
 # 5. save the network to a .Rdata file for future use
 saveRDS(netMCI, file = paste(Wfolder,"/WGCNA_MCI.Rdata",sep=""))
+netMCI = readRDS(paste(Wfolder,"/WGCNA_MCI.Rdata",sep=""))
 
 # 6. extract network meta-data and eigengenes
 moduleLabelsMCI = netMCI$colors
@@ -333,7 +344,7 @@ mergedColorsMCI = labels2colors(netMCI$colors)
 # PLOT DENDROGRAM
 png(paste(Pfolder,"/wgcna_dendrogram_MCI.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 plotDendroAndColors(netMCI$dendrograms[[1]], las = 1, cex.axis = 1.2, cex.lab = 1.1,
-                    mergedColorsMCI[net$blockGenes[[1]]],
+                    mergedColorsMCI[netMCI$blockGenes[[1]]],
                     "Module colors", cex.colorLabels = 1,
                     dendroLabels = FALSE, hang = 0.03,
                     addGuide = TRUE, guideHang = 0.05)
@@ -344,7 +355,7 @@ moduleMCI = list()
 colors = unique(moduleColorsMCI)
 for(y in 1:length(colors)){
   genesInModule = colnames(datMCI)[which(moduleColorsMCI %in% colors[[y]])]
-  moduleMCI[[y]] = data.frame(color = colors[[y]], label = unique(net$colors)[[y]], symbol = genesInModule)
+  moduleMCI[[y]] = data.frame(color = colors[[y]], label = unique(netMCI$colors)[[y]], symbol = genesInModule)
 }
 moduleMCI = ldply(moduleMCI)
 
@@ -453,76 +464,20 @@ fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
 opdf = data.frame(overlap$pTable)
 fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
 
-# overlapKME = overlapTableUsingKME()
+connCTL = intramodularConnectivity.fromExpr(datCTL,module$color)
+connMCI = intramodularConnectivity.fromExpr(datMCI,moduleMCI$label)
+
+overlapKME = overlapTableUsingKME(datCTL, datMCI,
+                                  module$color, moduleMCI$label)
 
 
 
 stop("stuff after here has more than one group")
 
-## Generate plots for differential expresison among groups
-cat("Plotting associations.\n")
-phenos = phenos[phenos$FACTOR_sampleID %in% rownames(datExpr),]
 
-## The boxplots are the interquartile range, whiskers are extended to 1.5 IQR
-## The lines are medians, and the notches (from ggplot2 docs):
-## In a notched box plot, the notches extend 1.58 * IQR / sqrt(n).
-## This gives a roughly 95% confidence interval for comparing medians.
-## See McGill et al. (1978) for more details.
 
-toplot = list()
-col = numeric()
-for(i in 1:length(colors)){
-  toplot[[i*2-1]] = MEs[phenos$FACTOR_dx == "CTL",i]
-  toplot[[i*2]] = MEs[phenos$FACTOR_dx == "AD",i]
-  names(toplot)[[i*2-1]] = paste(i-1,"CTL")
-  names(toplot)[[i*2]] = paste(labels2colors(i-1),"AD")
-  col[c(i*2-1,i*2)] = labels2colors(i-1)
-  # png(paste(Pfolder,"/ME",i,".png",sep=""), res=300, units="in",height = 5.5, width = 8)
-  # # plot(1:nrow(MEs),MEs[,i],##residuals(fit)[,i],
-  # #      col=as.factor(phenos$FACTOR_dx),
-  # #      ylab="Eigengene Value",
-  # #      xlab="Sample")
-  # # # abline(fit$coefficients[1,i],fit$coefficients[2,i])
-  # # legend("topleft",legend = levels(phenos$FACTOR_dx),fill=c(1,2))
-  # boxplot(MEs[,i] ~ phenos$FACTOR_dx, outline=F)
-  # title(main = paste("Module eigengene",i,"(",colors[i],")"))
-  # dev.off()
-}
-col[col=="black"] = "dimgray"
 
-png(paste(Pfolder,"/ME_diffex.png",sep=""), res=300, units="in",height = 5.5, width = 8)
-# par(mar = c(7, 4, 4, 2) + 0.1)
-# boxplot(toplot,names=names(toplot),pars=list(las = 2),col=col,ylab = "ME Value")
-# title(main = "Module Eigengene Differential Expression")
 
-## ggplot boxplot module eigengene expression across affection groups
-df_plot = data.frame(Dx = phenos$FACTOR_dx, MEs)
-df_plot = data.frame(melt(df_plot))
-colnames(df_plot)[2] = 'label'
-module_df = module
-module_df$label = paste("ME", module_df$label, sep = "")
-module_df = module_df[!duplicated(module_df$label), ]
-module_df = module_df[,!colnames(module_df) %in% c('symbol','sig')]
-df_plot = merge(df_plot, module_df, by='label')
-g = ggplot(df_plot, aes(x = label, y = value, fill = label, group = interaction(color, Dx))) +
-  geom_boxplot(notch = TRUE,
-               outlier.shape = NA) +
-  theme_bw() +
-  theme(legend.position="none",axis.text.y=element_text(size = 12),
-        axis.text.x=element_text(size = 12,angle=90,hjust=1,vjust=.3),
-        axis.title=element_text(size =12),
-        panel.border = element_rect(size = 2, fill = NA),
-        plot.title = element_text(hjust = .5),
-        plot.subtitle = element_text(hjust = .5)) +
-  ylab("Module eigengene expression") +
-  xlab("Module eigengenes") +
-  scale_x_discrete(breaks=df_plot$label, labels=df_plot$color) +
-  scale_fill_manual(values = labels2colors(0:(length(unique(df_plot$color))-1))) +
-  labs(title = "Eigengene Differential Expression",
-       subtitle = paste0(unique(df_plot$Dx)[1]," (left) vs ",unique(df_plot$Dx)[2]," (right)")) +
-  coord_cartesian(ylim = c(-.06,.06))
-print(g)
-dev.off()
 
 png(paste(Pfolder,"/ME_networks.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 plotEigengeneNetworks(MEs,setLabels=rownames(datExpr))
@@ -583,80 +538,10 @@ sink()
 cat("\nPrinted to topHubs.txt.")
 
 
-## Create linear model with eigengenes
-cat("\nCreating linear model.")
-mod = model.matrix(~ FACTOR_dx,phenos)
-fit = lm(as.matrix(MEs) ~ phenos$FACTOR_dx)
-
-coefs = coef(summary(fit))
-res = residuals(fit)
-coefs = ldply(coefs)
-coefs = coefs[seq(2,nrow(coefs),2),]
-colnames(coefs)[grepl("Pr..", colnames(coefs))] = "P"
-coefs$FDR = p.adjust(coefs$P, 'fdr')
-coefs$BONF = p.adjust(coefs$P, 'bonferroni')
-coefs$label = 0:(nrow(coefs)-1)
-coefs$color = labels2colors(coefs$label)
-coefs = coefs[order(coefs$P, decreasing = F), ]
-
-png(paste(Wfolder,"/WGCNA_volcano.png",sep=""),res=300,units="in",height = 5, width = 6)
-print(
-  ggplot(coefs, aes(x = coefs$Estimate, y = -log10(coefs$P))) +
-    geom_point(size = 1, col = coefs$color) +
-    theme_classic() +
-    theme(axis.text = element_text(size = 12), axis.title = element_text(size = 12), panel.border = element_rect(fill=NA,size = 1.5)) +
-    geom_hline(yintercept = -log10(.05), col = 'orange', linetype = "dashed") +
-    xlab( expression(paste("Model Eigengene Difference in Expression"))) +
-    ylab( expression(paste("-log"[10],"(P-value)"))) +
-    geom_hline(aes(yintercept = -log10(.05/nrow(coefs))), col = 'red', lwd = 0.25,linetype=1) +
-    geom_vline(aes(xintercept = 0), col = 'black',lwd=0.3, linetype=2) +
-    ggrepel::geom_text_repel(aes(label = coefs$color), size = 3, segment.size = 0.2, segment.colour = "grey", fontface = 3)
-)
-dev.off()
-
-fwrite(coefs,file=paste(Wfolder,"/ME_LM.txt",sep=""))
 
 
-## sva a couple SVs and account for them in the lm fit with eigengenes
-# mod = model.matrix(~ FACTOR_dx,phenos)
-mod = model.matrix(~ FACTOR_dx,phenos)
-svobj = sva(t(MEs), mod)
-fit = lm(as.matrix(MEs) ~ svobj$sv)
 
-# boxplot(residuals(fit))
-png(paste(Pfolder,"/ME_SVA_residuals.png",sep=""), res=300, units="in",height = 5.5, width = 8)
-## ggplot boxplot module eigengene residuals across affection groups
-df_plot = data.frame(Dx = phenos$FACTOR_dx, residuals(fit))
-df_plot = data.frame(melt(df_plot))
-colnames(df_plot)[2] = 'label'
-module_df = module
-module_df$label = paste("ME", module_df$label, sep = "")
-module_df = module_df[!duplicated(module_df$label), ]
-module_df = module_df[,!colnames(module_df) %in% c('symbol','sig')]
-df_plot = merge(df_plot, module_df, by='label')
 
-g = ggplot(df_plot, aes(x = label, y = value, fill = label, group = interaction(color, Dx))) +
-  geom_boxplot(notch = TRUE,
-               outlier.shape = NA) +
-  theme_bw() +
-  theme(legend.position="none",axis.text.y=element_text(size = 12),
-        axis.text.x=element_text(size = 12,angle=90,hjust=1,vjust=.3),
-        axis.title=element_text(size =12),
-        panel.border = element_rect(size = 2, fill = NA),
-        plot.title = element_text(hjust = .5),
-        plot.subtitle = element_text(hjust = .5)) +
-  ylab("Module eigengene residuals") +
-  xlab("Module eigengenes") +
-  scale_x_discrete(breaks=df_plot$label, labels=df_plot$color) +
-  scale_fill_manual(values = labels2colors(0:(length(unique(df_plot$color))-1))) +
-  labs(title = paste("Eigengene Residuals after",svobj$n.sv,"SV(s) removed"),
-       subtitle = paste0(unique(df_plot$Dx)[1]," (left) vs ",unique(df_plot$Dx)[2]," (right)")) +
-  coord_cartesian(ylim = c(-.06,.06))
-print(g)
-dev.off()
-
-save(svobj,file=paste(Wfolder,"/ME_SVA_OBJ.Rdata",sep=""))
-fwrite(coef(summary(fit)),file=paste(Wfolder,"/ME_SVA_LM.txt",sep=""))
 
 
 ## Gene set enrichment analysis for interesting module eigengenes
