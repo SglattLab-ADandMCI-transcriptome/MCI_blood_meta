@@ -1,4 +1,4 @@
-## Import data from syn22024498 aka ROSMAP - First batches
+## Import data from syn22024498 aka ROSMAP2 - last batch
 ## GCH
 
 require(data.table)
@@ -8,9 +8,9 @@ require(biomaRt)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
-studyname = "ROSMAP"
+studyname = "ROSMAP2"
 
-cat("Reading raw count data from syn22024498 aka ROSMAP\n")
+cat("Reading raw count data from syn22024498 aka ROSMAP2\n")
 
 # data = fread(paste0(rawlocation,"blood/syn22024498/S598_ExpMatrix_9904genes.txt"), data.table=F)
 data = fread(paste0(rawlocation,"blood/syn22024498/S615_RawCounts_60715genes.txt"), data.table=F)
@@ -26,7 +26,7 @@ Exprs = Exprs[,-which(names(Exprs) == "Sample_615")] ## this is a control sample
 binfo = binfo[-which(binfo$sName == "Sample_615")]
 
 all(names(Exprs) == binfo$sName)
-rightbatch = grepl("B1|B2",binfo$bInfo)
+rightbatch = grepl("B3",binfo$bInfo)
 binfo = binfo[rightbatch,]
 Exprs = Exprs[,rightbatch]
 
@@ -185,4 +185,3 @@ Exprs$PROBEID = newnames
 rm(data)
 rm(rawcovs)
 rm(rawages)
-

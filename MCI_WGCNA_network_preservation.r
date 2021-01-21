@@ -474,7 +474,8 @@ overlapKME = overlapTableUsingKME(datCTL, datMCI,
 
 stop("stuff after here has more than one group")
 
-
+### saving a copy of the environment
+###save.image("~/psychgene/wgcnaworking.rdata.RData")
 
 
 
@@ -484,58 +485,58 @@ plotEigengeneNetworks(MEs,setLabels=rownames(datExpr))
 dev.off()
 
 
-conn = intramodularConnectivity.fromExpr(datExpr,module$color)
-
-##intramodularConnectivity and hub genes, with significance from the meta-analysis
-cat("Comparing connectivity.\n")
-fwrite(conn,paste(Wfolder,"/intramodularConnectivity.txt",sep=""))
-meta = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
-meta$t.value = meta$arcsinh / meta$SE
-module$sig = NA
-for(i in 1:length(module$symbol)){
-  foo = meta$t.value[which(meta$GeneSymbol == module$symbol[i])]
-  if(length(foo) == 1) module$sig[i] = foo
-}
-
-for (i in 1:(length(colors)-1)){ ## because grey isn't connected lol
-  foo = module$label==i
-  png(paste(Pfolder,"/module_connectivity_Tscore_",i,".png",sep=""), res=300, units="in",height = 5.5, width = 8)
-    verboseScatterplot(
-      conn$kWithin[foo],
-      module$sig[foo],
-      col=module$color[foo],
-      main=paste("Module ",i,", ",labels2colors(i),":",sep=""),
-      xlab = "Internal Connectivity", ylab = "T Score", abline = TRUE)
-  dev.off()
-}
-
-png(paste(Pfolder,"/module_Tscore.png",sep=""), res=300, units="in",height = 5.5, width = 8)
-par(las = 2)
-plotModuleSignificance(
-  module$sig,
-  module$color,
-  boxplot = TRUE,
-  main = "Average T-Score by Module,",
-  ylab = "T-Score",
-  xlas = 1
-  )
-dev.off()
+# conn = intramodularConnectivity.fromExpr(datExpr,module$color)
+# 
+# ##intramodularConnectivity and hub genes, with significance from the meta-analysis
+# cat("Comparing connectivity.\n")
+# fwrite(conn,paste(Wfolder,"/intramodularConnectivity.txt",sep=""))
+# meta = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
+# meta$t.value = meta$arcsinh / meta$SE
+# module$sig = NA
+# for(i in 1:length(module$symbol)){
+#   foo = meta$t.value[which(meta$GeneSymbol == module$symbol[i])]
+#   if(length(foo) == 1) module$sig[i] = foo
+# }
+# 
+# for (i in 1:(length(colors)-1)){ ## because grey isn't connected lol
+#   foo = module$label==i
+#   png(paste(Pfolder,"/module_connectivity_Tscore_",i,".png",sep=""), res=300, units="in",height = 5.5, width = 8)
+#     verboseScatterplot(
+#       conn$kWithin[foo],
+#       module$sig[foo],
+#       col=module$color[foo],
+#       main=paste("Module ",i,", ",labels2colors(i),":",sep=""),
+#       xlab = "Internal Connectivity", ylab = "T Score", abline = TRUE)
+#   dev.off()
+# }
+# 
+# png(paste(Pfolder,"/module_Tscore.png",sep=""), res=300, units="in",height = 5.5, width = 8)
+# par(las = 2)
+# plotModuleSignificance(
+#   module$sig,
+#   module$color,
+#   boxplot = TRUE,
+#   main = "Average T-Score by Module,",
+#   ylab = "T-Score",
+#   xlas = 1
+#   )
+# dev.off()
 
 
 cat("Generating top hub genes per module.\n")
 topHubs = list()
 for (i in 1:length(colors)) {
   foo = module$label==i-1
-  foo = data.frame(module$symbol[foo],conn$kWithin[foo],stringsAsFactors = F)
-  foo = foo[order(foo$conn.kWithin.foo.,decreasing=T),]
+  foo = data.frame(module$symbol[foo],connCTL$kWithin[foo],stringsAsFactors = F)
+  foo = foo[order(foo$connCTL.kWithin.foo.,decreasing=T),]
   names(foo) = c("symbol","kWithin")
   topHubs[[i]] = head(foo,10)
   names(topHubs)[i]=labels2colors(i-1)
 }
-sink(paste(Wfolder,"/topHubs.txt",sep=""))
+sink(paste(Wfolder,"/CTLtopHubs.txt",sep=""))
   print(topHubs)
 sink()
-cat("\nPrinted to topHubs.txt.")
+cat("\nPrinted to CTLtopHubs.txt.")
 
 
 
@@ -601,7 +602,9 @@ print(table(grepl("REACTOME", unique(go_terms$PATHWAY))))
 # sig_mods = unique(as.character(graphDF$Module[graphDF$FDR < .05]))
 # sig_mods = as.character(metadata$colors[metadata$labels %in% sig_mods])
 #-----------
-fit = lm(as.matrix(MEs) ~ svobj$sv + phenos$FACTOR_dx)
+fit = lm(as.matrix(MEs) ~ svobj$sv + phenos$FACTOR_dx)   ## TODO svobj is what
+### ahhh TODO this whole section is focused on dx comparison, gotta change it
+## maybe just output by kwithin, but include a bit on the mci/severity?
 thing = summary(fit)
 foo = laply(thing, '[[', "coefficients")
 sig_mods = list()
