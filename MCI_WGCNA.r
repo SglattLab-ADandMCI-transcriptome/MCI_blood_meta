@@ -38,6 +38,14 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
+
+# ####################
+# #####test area
+# datExpr = datExpr[-which(phenos$FACTOR_studyID=="Shigemizu20"),]
+# phenos = phenos[-which(phenos$FACTOR_studyID=="Shigemizu20"),]
+# ####################
+
+
 badgenes = which(colSums(is.na(datExpr)) > 1)
 if(length(badgenes) > 0){
   datExpr = datExpr[,-badgenes]
