@@ -38,7 +38,11 @@ for(i in 1:nrow(Exprs)){
     filtered[i] = TRUE
   }
 }
+cat(sum(filtered),"genes filtered.\n")
 filtered = which(filtered)
+foo = sum(Exprs[filtered,])
+bar = sum(Exprs)
+cat(foo,"total CPM filtered, or",foo/bar,"of all")
 if(length(filtered) > 0){
   Exprs = Exprs[-filtered,]
   genes = genes[-filtered]

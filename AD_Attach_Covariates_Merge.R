@@ -145,3 +145,17 @@ print(table(writethis$FACTOR_studyID,writethis$FACTOR_dx))
 
 fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))
 
+studies = unique(writethis$FACTOR_studyID)
+
+foo = colSums(is.na(writethis))
+cat("Overlap has",sum(foo==0),"genes\n")
+
+for(study in studies){
+  bar = writethis[-which(writethis$FACTOR_studyID==study),]
+  foo = colSums(is.na(bar))
+  bar = writethis[which(writethis$FACTOR_studyID==study),]
+  baz = colSums(is.na(bar))
+  cat(study,"has",sum(baz==0),"genes, and without it the overlap has",sum(foo == 0),"\n")
+}
+
+

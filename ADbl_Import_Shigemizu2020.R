@@ -54,8 +54,12 @@ for(i in 1:nrow(Exprs)){
 }
 cat(sum(filtered),"genes filtered.\n")
 filtered = which(filtered)
+foo = sum(Exprs[filtered,])
+bar = sum(Exprs)
+cat(foo,"total CPM filtered, or",foo/bar,"of all")
 Exprs = Exprs[-filtered,]
 genes = genes[-filtered]
+
 
 Exprs = normalizeQuantiles(Exprs)
 Exprs = asinh(Exprs)
