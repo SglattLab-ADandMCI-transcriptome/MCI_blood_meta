@@ -3,6 +3,9 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA for MCI blood studies
 ## GCH
 
+## TODO remove rosmap3
+## TODO gsg
+
 require(data.table)
 require(WGCNA)
 require(plyr)
@@ -46,10 +49,13 @@ phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 # ####################
 
 
-badgenes = which(colSums(is.na(datExpr)) > 1)
-if(length(badgenes) > 0){
-  datExpr = datExpr[,-badgenes]
-}
+# ##remove any missingness
+# badgenes = which(colSums(is.na(datExpr)) > 1)
+# if(length(badgenes) > 0){
+#   datExpr = datExpr[,-badgenes]
+# }
+
+## Limit to Dx we care about
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
 samples = samples[gooddx]

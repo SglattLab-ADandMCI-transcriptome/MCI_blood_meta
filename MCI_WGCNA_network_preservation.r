@@ -1,5 +1,8 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
 
+## TODO remove rosmap3
+## TODO gsg
+
 ## WGCNA network preservation analysis for MCI blood studies
 ## GCH
 
@@ -38,10 +41,13 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
-badgenes = which(colSums(is.na(datExpr)) > 1)
-if(length(badgenes) > 0){
-  datExpr = datExpr[,-badgenes]
-}
+
+# badgenes = which(colSums(is.na(datExpr)) > 1)
+# if(length(badgenes) > 0){
+#   datExpr = datExpr[,-badgenes]
+# }
+
+
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
@@ -53,22 +59,22 @@ datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
 multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 
 ## get ctl modules
-# ## run goodsamplesgenes to ensure suitability of samples and genes
-# cat("\nRunning GoodSamplesGenes.")
-# gsg = goodSamplesGenes(datExpr, verbose = 3);
-# bad = c("Bad Genes: ",names(datExpr)[!gsg$goodGenes],"\n",
-#         "Bad Samples: ",rownames(datExpr)[!gsg$goodSamples])
-# # print(bad)
-# cat("\n",length(names(datExpr)[!gsg$goodGenes]),"bad genes and",
-#     length(rownames(datExpr)[!gsg$goodSamples]),"bad samples.\n")
-# cat("\nWriting bad samples and genes to file.\n")
-# write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed.txt",sep=""))
-# 
-# datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
-# genes = genes[gsg$goodGenes]
-# samples = samples[gsg$goodSamples]
-# phenos = phenos[gsg$goodSamples,]
-# rownames(datExpr) = samples
+## run goodsamplesgenes to ensure suitability of samples and genes
+cat("\nRunning GoodSamplesGenes.")
+gsg = goodSamplesGenes(datExpr, verbose = 3);
+bad = c("Bad Genes: ",names(datExpr)[!gsg$goodGenes],"\n",
+        "Bad Samples: ",rownames(datExpr)[!gsg$goodSamples])
+# print(bad)
+cat("\n",length(names(datExpr)[!gsg$goodGenes]),"bad genes and",
+    length(rownames(datExpr)[!gsg$goodSamples]),"bad samples.\n")
+cat("\nWriting bad samples and genes to file.\n")
+write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed.txt",sep=""))
+
+datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
+genes = genes[gsg$goodGenes]
+samples = samples[gsg$goodSamples]
+phenos = phenos[gsg$goodSamples,]
+rownames(datExpr) = samples
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0

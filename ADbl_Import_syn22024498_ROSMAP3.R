@@ -1,4 +1,4 @@
-## Import data from syn22024498 aka ROSMAP2 - last batch
+## Import data from syn22024498 aka ROSMAP3 - last batch
 ## GCH
 
 require(data.table)
@@ -8,9 +8,9 @@ require(biomaRt)
 
 if(!exists("rawlocation")) stop("No rawlocation defined!  Run from the master import script!")
 
-studyname = "ROSMAP2"
+studyname = "ROSMAP3"
 
-cat("Reading raw count data from syn22024498 aka ROSMAP2\n")
+cat("Reading raw count data from syn22024498 aka ROSMAP3\n")
 
 # data = fread(paste0(rawlocation,"blood/syn22024498/S598_ExpMatrix_9904genes.txt"), data.table=F)
 data = fread(paste0(rawlocation,"blood/syn22024498/S615_RawCounts_60715genes.txt"), data.table=F)

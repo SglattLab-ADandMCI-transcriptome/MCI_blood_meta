@@ -78,7 +78,7 @@ Exprs = data.frame(PROBEID = genes, Exprs)
 #   ID = strsplit(IDs[i],"\\.")[[1]][1]
 #   thing = genetable$hgnc_symbol[which(genetable$ensembl_gene_id == ID)]
 #   if(thing == ""){
-#     thing = NA ##TODO lnc-orf if no hgnc?
+#     thing = NA 
 #   }
 #   if(length(thing)>0){
 #     genes[i] = thing[1] 

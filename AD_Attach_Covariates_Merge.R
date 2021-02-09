@@ -11,14 +11,16 @@ covsfolder = "./normalized_data/"
 datafolder = "./normalized_data/"
 lastname = "Hearn"  #placeholder
 
-#list of platforms
-
 # make the new folder
 if(!dir.exists(covsfolder)){ dir.create(covsfolder)}
 
 require(data.table)
 require(plyr)
 require(org.Hs.eg.db)
+require(data.table)
+
+#list of platforms
+platform = fread("./references/platform.txt")
 
 
 ## remove duplicates by averaging, do this after getting names
@@ -35,6 +37,41 @@ dupav <- function(x) {
     l = which(names==name)
     if (length(l) > 1) {
       y = apply(as.matrix(x[l,-1,drop=F]),2,median)
+      y = data.frame(matrix(c(0,y),nrow=1))
+      y[1] = name
+      names(y)=names(x)
+      toadd = rbind(toadd,y,deparse.level = 0)
+      todrop = c(todrop,l)
+      foo = foo+1
+      cat(foo,"of a possible",ln,"\r")
+    }
+  }
+  print(paste("number of names with duplicates:",foo))
+  if(length(todrop) > 0){
+    x = x[-todrop,,drop=FALSE] #drop=FALSE just in case we're left with only one nonduplicate column
+  }
+  x = rbind(x,toadd)
+  gc()
+  return(x)
+}
+
+dupadd <- function(x) {
+  # x = fread("~/psychgene/dupaddtest.csv")
+  todrop = vector()
+  toadd = as.data.frame(matrix(nrow=0,ncol=ncol(x)))
+  names(toadd)=names(x)
+  foo = 0
+  names = x$PROBEID
+  ln = length(unique(names))
+  cat("Removing duplicates.  Total gene names:", length(unique(names)),
+      " Total lines:",length(names),"\n")
+  for(name in unique(names)) {
+    l = which(names==name)
+    if (length(l) > 1) {
+      y = x[l,-1]
+      y = sinh(y)
+      y = apply(y,2,sum)
+      y = asinh(y)
       y = data.frame(matrix(c(0,y),nrow=1))
       y[1] = name
       names(y)=names(x)
@@ -111,15 +148,24 @@ for(i in 1:length(covfiles)){
   newnames = genes_in_data
   for(q in 1:length(newnames)){
     thing = nomatch_conv$updated_hgnc[which(nomatch_conv$ALIAS == newnames[q])]
-    if(length(thing) == 1){
+    if(length(thing) == 1 && !is.na(thing[1])){
       newnames[q] = thing
     }
   }
   cat("Updated",sum(!genes_in_data %in% newnames),"symbols.\n")
+  sink(paste0("./QCplots/",studyID,"_symbol_update.txt"))
+  print(data.frame(genes_in_data,newnames))
+  sink()
   
   data$PROBEID = newnames
-    
-  data = dupav(data)
+  
+  if(platform$platform[which(platform$study == studyID)] == "array"){
+    data = dupav(data)
+  } else {
+    data = dupadd(data)
+  }
+  
+  
   probenames = data$PROBEID
   
   data = data[,-1]
@@ -146,10 +192,8 @@ print(table(writethis$FACTOR_studyID,writethis$FACTOR_dx))
 fwrite(writethis,paste0(covsfolder,"ADMCI",cmString))
 
 studies = unique(writethis$FACTOR_studyID)
-
 foo = colSums(is.na(writethis))
 cat("Overlap has",sum(foo==0),"genes\n")
-
 for(study in studies){
   bar = writethis[-which(writethis$FACTOR_studyID==study),]
   foo = colSums(is.na(bar))
@@ -157,5 +201,14 @@ for(study in studies){
   baz = colSums(is.na(bar))
   cat(study,"has",sum(baz==0),"genes, and without it the overlap has",sum(foo == 0),"\n")
 }
-
-
+sink("./QCplots/geneoverlapstable.txt")
+foo = colSums(is.na(writethis))
+cat("Overlap has",sum(foo==0),"genes\n")
+for(study in studies){
+  bar = writethis[-which(writethis$FACTOR_studyID==study),]
+  foo = colSums(is.na(bar))
+  bar = writethis[which(writethis$FACTOR_studyID==study),]
+  baz = colSums(is.na(bar))
+  cat(study,"has",sum(baz==0),"genes, and without it the overlap has",sum(foo == 0),"\n")
+}
+sink()
