@@ -11,8 +11,6 @@ tissues = c("whole_blood")
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
-## TODO unknown and other race to NA?  and/or impute?
-
 # load these packages (install if needed)
 require(plyr)
 require(ggplot2)
@@ -58,7 +56,15 @@ if(all(dattis == covtis, covtis == scaletis)){
 tissue = tissues[1]
 for(tissue in tissues){
   message("Beginning analysis: ",tissue)
+
+  ## read in data files
+  datExprTissue = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),
+                        data.table=F, stringsAsFactors = F)
+  datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),
+                      data.table=F, stringsAsFactors = F)
+  datExprCovs$FACTOR_age = as.numeric(sub("\\+","",datExprCovs$FACTOR_age))
   
+    
   ##Generate abundances PCs
   cat("Generating abundances principal components\n")
   abfiles = list.files("./deconvolution","abundances", full.names = T)
@@ -73,15 +79,24 @@ for(tissue in tissues){
   abpc = prcomp(abundances)
   abpc3 = data.frame(abpc$x[,c(1:3)])
   names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
-  ## TODO a pca graph like in the scaling thing
+  all(datExprCovs$FACTOR_sampleID == row.names(abundances))  ##TRUE
+  
+  col = factor(datExprCovs$FACTOR_studyID)
+  g = ggplot(abpc3, aes(x = `cells PC1`, y = `cells PC2`,
+                            col = col)) +
+      scale_color_brewer('Study ID', palette = 'Spectral')+
+      geom_point(size = 3) +
+      theme_minimal() +
+      theme(panel.border = element_rect(size=1,fill=NA),
+            axis.title = element_text(size =12),
+            axis.text=element_text(color='black',size=12))
+  png(paste("./QCPlots/",tissue,"_PCA_deconvolution.png", sep =""), res=300,units="in",height = 6, width = 10)
+  print(g)
+  dev.off()
+  ## TODO decide on doing 7 categories for actual work instead
   
   
   ## DGE per tissue per study, non-scaled data
-  datExprTissue = fread(paste0("./data_for_analysis/",tissue,"_GeneExpression_allstudies.txt"),
-                        data.table=F, stringsAsFactors = F)
-  datExprCovs = fread(paste0("./data_for_analysis/",tissue,"_SampleFactors_allstudies.txt"),
-                      data.table=F, stringsAsFactors = F)
-  datExprCovs$FACTOR_age = as.numeric(sub("\\+","",datExprCovs$FACTOR_age))
   # genes = datExprTissue$SYMBOL
   # datExprTissue = data.frame(datExprCovs,t(datExprTissue[,-1]))
   genes = names(datExprTissue)[-1]
@@ -599,6 +614,7 @@ for(tissue in tissues){
   
   png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_ggplot_manhattan.png"), res = 300, units = "in", height = 5, width = 9)
   # manhattan plot
+  # the line is BONF and labels are FDR q<.05
   print(
   try(
     ggplot(sub, aes(x = sub$pos, y = -log10(sub$P))) + 
@@ -615,7 +631,26 @@ for(tissue in tissues){
   ))
   dev.off()
   
-  ## TODO fix volcano and manhattan plot fdr vs bonferroni, lines, and colors
+  png(paste0("./QCplots/",tissue,"_qc",analysislabel,"_ggplot_manhattan_q.png"), res = 300, units = "in", height = 5, width = 9)
+  # manhattan plot with q values
+  # line and labels are FDR q<.05
+  print(
+    try(
+      ggplot(sub, aes(x = sub$pos, y = -log10(sub$FDR))) + 
+        geom_point(size = 0.7, col = as.character(sub$col)) + 
+        ylim(min = 0, max = 1.2*max(-log10(sub$FDR))) + 
+        xlab("Genomic coordinate") + 
+        theme_classic() +
+        ylab(expression(paste("-log"[10],"(Q-value)"))) +
+        scale_x_continuous(name="Genomic coordinate", breaks=median_pos$V1, labels=median_pos$.id) +
+        geom_hline(yintercept = -log10(.05), col = "black", lwd = 0.5, linetype = "dashed") +
+        geom_text_repel(aes(label = sub$SYMBOL), fontface = 'italic', size = 3, col = "black") +
+        theme(axis.title = element_text(size = 12), axis.text = element_text(size = 8), axis.text.x = element_text(angle = 45, hjust = 1))
+      # end plot
+    ))
+  dev.off()
+  
+
   # volcano plot
   cat("\nConstructing volcano plot.")
   res_df$FDR = p.adjust(res_df$P, "fdr")
@@ -623,7 +658,7 @@ for(tissue in tissues){
   psize = -log10(res_df$P)
   psize = (psize - min(psize))/(max(psize) - min(psize)) + 0.5
   col = rep("lightgrey", nrow(res_df))
-  col[which(abs(res_df$arcsinh) > 0.1)] = "dodgerblue3"
+  # col[which(abs(res_df$arcsinh) > 0.1)] = "dodgerblue3"
   col[which(res_df$FDR < .05)] = "orange"
   col[which(res_df$BONF < .05)] = "firebrick3"
   
@@ -633,10 +668,11 @@ for(tissue in tissues){
   top_df = res_df[!is.na(res_df$vLabel),]
   fwrite(top_df,paste(metafolder,"/",tissue,"_",analysislabel,"_meta_significant_arcsinh_and_pvals.csv", sep=""))
   
-  ## top 30 pval and top 20 diffs only, to reduce clutter
-  topD = order(abs(res_df$arcsinh),decreasing=T)
-  topP = order(res_df$FDR)
-  keepLabels = unique(c(topD[1:20],topP[1:30]))
+  ## top pval only, to reduce clutter if needed
+  # topD = order(abs(res_df$arcsinh),decreasing=T)
+  # topP = order(res_df$FDR)
+  # keepLabels = unique(c(topD[1:20],topP[1:30]))
+  keepLabels = which(res_df$FDR < .05)
   dropLabels = c(1:nrow(res_df))
   dropLabels = dropLabels[-which(dropLabels %in% keepLabels)]
   res_df$vLabel[dropLabels] = NA

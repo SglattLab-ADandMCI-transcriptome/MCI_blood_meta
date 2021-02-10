@@ -133,9 +133,6 @@ for (tissue in tissues){
     # svdf = as.data.frame(svobj$sv)
 
     
-    ### TODO really do need SVs here, even if I have to make them without the\
-    ### other vars (and just include them in the graph)
-    
     cors = cor(predictors,use='pairwise.complete.obs')
 
     png(paste("./QCplots/",tissue,"_deconvolution_SVDF","_", study,".png", sep =""), res=300,units="in",height=6,width=6)
