@@ -1,7 +1,10 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
 
-## TODO remove rosmap3
-## TODO gsg
+## TODO gsg??
+## TODO soft threshold
+#### maybe just 12 according to https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/faq.html
+##### with a picksoft just to verify reasonableness
+## TODO deconvolution???
 
 ## WGCNA network preservation analysis for MCI blood studies
 ## GCH
@@ -42,6 +45,10 @@ samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
 
+## Remove ROSMAP batch 3 due to low gene overlap with other studies
+datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
+phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
+
 # badgenes = which(colSums(is.na(datExpr)) > 1)
 # if(length(badgenes) > 0){
 #   datExpr = datExpr[,-badgenes]
@@ -56,25 +63,42 @@ phenos = phenos[gooddx,]
 datCTL = datExpr[which(phenos$FACTOR_dx == "CTL"),]
 datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
 
-multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
+phenosCTL = phenos[which(phenos$FACTOR_dx == "CTL"),]
+phenosMCI = phenos[which(phenos$FACTOR_dx == "MCI"),]
 
-## get ctl modules
+
 ## run goodsamplesgenes to ensure suitability of samples and genes
-cat("\nRunning GoodSamplesGenes.")
-gsg = goodSamplesGenes(datExpr, verbose = 3);
-bad = c("Bad Genes: ",names(datExpr)[!gsg$goodGenes],"\n",
-        "Bad Samples: ",rownames(datExpr)[!gsg$goodSamples])
+cat("\nRunning GoodSamplesGenes for CTL.")
+gsg = goodSamplesGenes(datCTL, verbose = 3);
+bad = c("Bad Genes: ",names(datCTL)[!gsg$goodGenes],"\n",
+        "Bad Samples: ",rownames(datCTL)[!gsg$goodSamples])
 # print(bad)
-cat("\n",length(names(datExpr)[!gsg$goodGenes]),"bad genes and",
-    length(rownames(datExpr)[!gsg$goodSamples]),"bad samples.\n")
+cat("\n",length(names(datCTL)[!gsg$goodGenes]),"bad genes and",
+    length(rownames(datCTL)[!gsg$goodSamples]),"bad samples.\n")
 cat("\nWriting bad samples and genes to file.\n")
-write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed.txt",sep=""))
+write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_CTL.txt",sep=""))
 
-datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
-genes = genes[gsg$goodGenes]
-samples = samples[gsg$goodSamples]
-phenos = phenos[gsg$goodSamples,]
-rownames(datExpr) = samples
+datCTL = datCTL[gsg$goodSamples,gsg$goodGenes]
+phenosCTL = phenosCTL[gsg$goodSamples,]
+rownames(datCTL) = phenosCTL$FACTOR_sampleID
+
+cat("\nRunning GoodSamplesGenes for MCI.")
+gsg = goodSamplesGenes(datMCI, verbose = 3);
+bad = c("Bad Genes: ",names(datMCI)[!gsg$goodGenes],"\n",
+        "Bad Samples: ",rownames(datMCI)[!gsg$goodSamples])
+# print(bad)
+cat("\n",length(names(datMCI)[!gsg$goodGenes]),"bad genes and",
+    length(rownames(datMCI)[!gsg$goodSamples]),"bad samples.\n")
+cat("\nWriting bad samples and genes to file.\n")
+write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_MCI.txt",sep=""))
+
+datMCI = datMCI[gsg$goodSamples,gsg$goodGenes]
+phenosMCI = phenosMCI[gsg$goodSamples,]
+rownames(datMCI) = phenosMCI$FACTOR_sampleID
+
+
+
+multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0
@@ -91,6 +115,9 @@ rownames(datExpr) = samples
 #
 # cat("\nWGCNA genes:",length(genes),"\n")
 
+
+
+## get ctl modules
 ## one-step automated gene network analysis
 # 1. find optimal soft-threshold power for network construction
 cat("\nFinding soft threshold...\n")
@@ -109,7 +136,7 @@ sft0 = sft
 
 sft0
 
-png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width=6)
+png(paste(Pfolder,"/softthreshold_CTL.png",sep=""),res=300,units="in",height=6,width=6)
 
   par(mfrow=c(1,1))
   par(mar = c(5.1, 5.1,5.1,2.1))
@@ -388,6 +415,7 @@ moduleMCI = fread(paste(Wfolder,"/wgcna_module-membership_MCI.txt", sep=""),data
 
 
 ## network preservation analysis part
+message("Beginning network preservation analysis.")
 multiColor = list(CTL = module$color, MCI = moduleMCI$color)
 mp = modulePreservation(multiExpr, multiColor,
                         referenceNetworks = 1,
@@ -411,7 +439,9 @@ print( cbind(statsObs[, c("medianRank.pres", "medianRank.qual")],
              signif(statsZ[, c("Zsummary.pres", "Zsummary.qual")], 2)) )
 sink()
 
-png(paste(Pfolder,"/Preservation.png",sep=""), res=300, units="in",height = 5.5, width = 11)
+##TODO dying here right now, Inf zsummary
+png(paste(Pfolder,"/Preservation.png",sep=""), res=300, units="in",
+    height = 5.5, width = 11)
 # Module labels and module sizes are also contained in the results
 modColors = rownames(mp$preservation$observed[[ref]][[test]])
 moduleSizes = mp$preservation$Z[[ref]][[test]][, 1];
@@ -455,6 +485,11 @@ for (p in 1:2){
 # If plotting into a file, close it
 dev.off();
 
+
+
+
+
+
 ## save preservation statistics
 for(i in 1:4){
   thing = mp$preservation[i][[1]][[1]][[2]]
@@ -462,8 +497,15 @@ for(i in 1:4){
   fwrite(thing,paste0(Pfolder,"/Preservation_Statistics_",thingname,".csv"),row.names=T)
 }
 
+
+
+
+
+
+## TODO this is mad too -- do we need to gsg the main group, then split it?
 ## create and save overlap table
 ## TODO kME style
+## TODO can use adjacency matrices from above?
 overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
 odf = data.frame(overlap$countTable)
 fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
@@ -478,16 +520,20 @@ overlapKME = overlapTableUsingKME(datCTL, datMCI,
 
 
 
-stop("stuff after here has more than one group")
+# stop("stuff after here has more than one group")
 
 ### saving a copy of the environment
-###save.image("~/psychgene/wgcnaworking.rdata.RData")
+save.image("~/psychgene/wgcnaworking.rdata.RData")
 
 
 
 
-png(paste(Pfolder,"/ME_networks.png",sep=""), res=300, units="in",height = 5.5, width = 8)
-plotEigengeneNetworks(MEs,setLabels=rownames(datExpr))
+png(paste(Pfolder,"/ME_networks_CTL.png",sep=""), res=300, units="in",height = 5.5, width = 8)
+plotEigengeneNetworks(MEs,setLabels=rownames(datCTL))
+dev.off()
+
+png(paste(Pfolder,"/ME_networks_MCI.png",sep=""), res=300, units="in",height = 5.5, width = 8)
+plotEigengeneNetworks(MEsMCI,setLabels=rownames(datMCI))
 dev.off()
 
 
@@ -544,15 +590,30 @@ sink(paste(Wfolder,"/CTLtopHubs.txt",sep=""))
 sink()
 cat("\nPrinted to CTLtopHubs.txt.")
 
+topHubs = list()
+for (i in 1:length(colors)) {
+  foo = module$label==i-1
+  foo = data.frame(module$symbol[foo],connMCI$kWithin[foo],stringsAsFactors = F)
+  foo = foo[order(foo$connMCI.kWithin.foo.,decreasing=T),]
+  names(foo) = c("symbol","kWithin")
+  topHubs[[i]] = head(foo,10)
+  names(topHubs)[i]=labels2colors(i-1)
+}
+sink(paste(Wfolder,"/MCItopHubs.txt",sep=""))
+print(topHubs)
+sink()
+cat("\nPrinted to MCItopHubs.txt.")
 
 
+### saving a copy of the environment
+save.image("~/psychgene/wgcnaworking.rdata.RData")
 
 
-
+stop("blarg")
 
 
 ## Gene set enrichment analysis for interesting module eigengenes
-cat("\nPerforming gene set enrichment analysis.")
+cat("\nPerforming gene set enrichment analysis for CTL modules.")
 
 # load gene names for hg19
 genes = genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
@@ -580,20 +641,24 @@ go_terms = go_terms[!is.na(go_terms$GOID), ]
 
 go_terms = go_terms[,colnames(go_terms) %in% c("SYMBOL", "PATHWAY")]
 go_terms = ldply(list(go_terms, reactome))
-go_terms$in_data = ifelse(go_terms$SYMBOL %in% colnames(datExpr), "in", "out")
+go_terms$in_data = ifelse(go_terms$SYMBOL %in% colnames(datCTL), "in", "out")
 
 count_int = table(go_terms$PATHWAY, go_terms$in_data)
 perc_overlap = count_int[,1]/rowSums(count_int)
 perc_overlap = perc_overlap[perc_overlap > 0.5]
 
-go_terms = go_terms[go_terms$SYMBOL %in% colnames(datExpr), ] # only look at genes in the datExpr object
+go_terms = go_terms[go_terms$SYMBOL %in% colnames(datCTL), ] # only look at genes in the datCTL object
 go_terms = go_terms[go_terms$PATHWAY %in% names(perc_overlap), ]
 
 cat("\nPathways in REACTOME")
 print(table(grepl("REACTOME", unique(go_terms$PATHWAY))))
 
 
-## If there are no sig mods, make sure that there's only case and control in dx
+## TODO instead of 'significant' we need to go with 'disrupted'
+## pValuesHypergeo is a feature in overlapsusingKME, I think by module
+## though that may be more for figuring out which modules correspond to which
+## we can also sort by/note the zsummary and median rank
+
 ## decide some significant modules
 # fit = lm(as.matrix(MEs) ~ svobj$sv)
 # thing = residuals(fit)

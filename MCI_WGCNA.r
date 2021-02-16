@@ -3,8 +3,8 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA for MCI blood studies
 ## GCH
 
-## TODO remove rosmap3
-## TODO gsg
+##TODO soft threshold
+##TODO deconvolution??
 
 require(data.table)
 require(WGCNA)
@@ -42,12 +42,9 @@ samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
 
-# ####################
-# #####test area
-# datExpr = datExpr[-which(phenos$FACTOR_studyID=="Shigemizu20"),]
-# phenos = phenos[-which(phenos$FACTOR_studyID=="Shigemizu20"),]
-# ####################
-
+## Remove ROSMAP batch 3 due to low gene overlap with other studies
+datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
+phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
 
 # ##remove any missingness
 # badgenes = which(colSums(is.na(datExpr)) > 1)

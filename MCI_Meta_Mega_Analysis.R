@@ -11,6 +11,8 @@ tissues = c("whole_blood")
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
+##### TODO binomial test thing.  get a number. understand it.
+
 # load these packages (install if needed)
 require(plyr)
 require(ggplot2)
