@@ -6,6 +6,7 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ##### with a picksoft just to verify reasonableness
 ## TODO deconvolution???
 
+
 ## WGCNA network preservation analysis for MCI blood studies
 ## GCH
 
@@ -332,8 +333,8 @@ table(modulesPRE)
 #Check to see if network modules can be cut and merged...
 cat("Calculating potential eigengenes.\n")
 MEList = moduleEigengenes(datMCI, colors=modulesPRE)
-MEs=MEList$eigengenes
-MEDiss = 1-cor(MEs, use='p')
+MEsMCI=MEList$eigengenes
+MEDiss = 1-cor(MEsMCI, use='p')
 METree = hclust(as.dist(MEDiss), method ="average")
 
 # 4.one-step automated network construction
@@ -506,11 +507,13 @@ for(i in 1:4){
 ## create and save overlap table
 ## TODO kME style
 ## TODO can use adjacency matrices from above?
-overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
-odf = data.frame(overlap$countTable)
-fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
-opdf = data.frame(overlap$pTable)
-fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
+
+# ## TODO i guess this doesn't work if it's not the same labels?  where do the labels go?
+# overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
+# odf = data.frame(overlap$countTable)
+# fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
+# opdf = data.frame(overlap$pTable)
+# fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
 
 connCTL = intramodularConnectivity.fromExpr(datCTL,module$color)
 connMCI = intramodularConnectivity.fromExpr(datMCI,moduleMCI$label)
@@ -523,7 +526,7 @@ overlapKME = overlapTableUsingKME(datCTL, datMCI,
 # stop("stuff after here has more than one group")
 
 ### saving a copy of the environment
-save.image("~/psychgene/wgcnaworking.rdata.RData")
+# save.image("~/psychgene/wgcnaworking.rdata.RData")
 
 
 
@@ -592,8 +595,8 @@ cat("\nPrinted to CTLtopHubs.txt.")
 
 topHubs = list()
 for (i in 1:length(colors)) {
-  foo = module$label==i-1
-  foo = data.frame(module$symbol[foo],connMCI$kWithin[foo],stringsAsFactors = F)
+  foo = moduleMCI$label==i-1
+  foo = data.frame(moduleMCI$symbol[foo],connMCI$kWithin[foo],stringsAsFactors = F)
   foo = foo[order(foo$connMCI.kWithin.foo.,decreasing=T),]
   names(foo) = c("symbol","kWithin")
   topHubs[[i]] = head(foo,10)
