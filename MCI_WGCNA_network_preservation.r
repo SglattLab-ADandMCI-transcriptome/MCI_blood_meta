@@ -1,12 +1,5 @@
 setwd("~/PsychGENe/MCI_blood_meta/")
 
-## TODO gsg??
-## TODO soft threshold
-#### maybe just 12 according to https://horvath.genetics.ucla.edu/html/CoexpressionNetwork/Rpackages/WGCNA/faq.html
-##### with a picksoft just to verify reasonableness
-## TODO deconvolution???
-
-
 ## WGCNA network preservation analysis for MCI blood studies
 ## GCH
 
@@ -14,9 +7,7 @@ require(data.table)
 require(WGCNA)
 require(plyr)
 require(ggplot2)
-require(sva)
 require(limma)
-require(sas7bdat)
 require(TxDb.Hsapiens.UCSC.hg19.knownGene)
 require(org.Hs.eg.db)
 require(GO.db)
@@ -50,11 +41,11 @@ phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
 phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
 
-# badgenes = which(colSums(is.na(datExpr)) > 1)
-# if(length(badgenes) > 0){
-#   datExpr = datExpr[,-badgenes]
-# }
-
+# remove genes with any missingness
+badgenes = which(colSums(is.na(datExpr)) > 1)
+if(length(badgenes) > 0){
+  datExpr = datExpr[,-badgenes]
+}
 
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
@@ -84,22 +75,22 @@ phenosCTL = phenosCTL[gsg$goodSamples,]
 rownames(datCTL) = phenosCTL$FACTOR_sampleID
 
 cat("\nRunning GoodSamplesGenes for MCI.")
-gsg = goodSamplesGenes(datMCI, verbose = 3);
-bad = c("Bad Genes: ",names(datMCI)[!gsg$goodGenes],"\n",
-        "Bad Samples: ",rownames(datMCI)[!gsg$goodSamples])
+gsgMCI = goodSamplesGenes(datMCI, verbose = 3);
+bad = c("Bad Genes: ",names(datMCI)[!gsgMCI$goodGenes],"\n",
+        "Bad Samples: ",rownames(datMCI)[!gsgMCI$goodSamples])
 # print(bad)
-cat("\n",length(names(datMCI)[!gsg$goodGenes]),"bad genes and",
-    length(rownames(datMCI)[!gsg$goodSamples]),"bad samples.\n")
+cat("\n",length(names(datMCI)[!gsgMCI$goodGenes]),"bad genes and",
+    length(rownames(datMCI)[!gsgMCI$goodSamples]),"bad samples.\n")
 cat("\nWriting bad samples and genes to file.\n")
 write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_MCI.txt",sep=""))
 
-datMCI = datMCI[gsg$goodSamples,gsg$goodGenes]
-phenosMCI = phenosMCI[gsg$goodSamples,]
+## also take the stuff out that was taken out of datCTL
+crossgenes = gsg$goodGenes & gsgMCI$goodGenes
+datMCI = datMCI[gsgMCI$goodSamples,crossgenes]
+
+# datMCI = datMCI[gsgMCI$goodSamples,gsgMCI$goodGenes]
+phenosMCI = phenosMCI[gsgMCI$goodSamples,]
 rownames(datMCI) = phenosMCI$FACTOR_sampleID
-
-
-
-multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0
@@ -120,44 +111,44 @@ multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 
 ## get ctl modules
 ## one-step automated gene network analysis
+
+
 # 1. find optimal soft-threshold power for network construction
-cat("\nFinding soft threshold...\n")
-# colnames(datExpr) = convertKeys(colnames(datExpr))
-
-powers = c(c(1:10), seq(from = 12, to=30, by=2))
-
-sft = pickSoftThreshold(datCTL,
-                        powerVector = powers,
-                        RsquaredCut = .8,
-                        corFnc="bicor",
-                        networkType="signed",
-                        verbose = 1)
-
-sft0 = sft
-
-sft0
-
-png(paste(Pfolder,"/softthreshold_CTL.png",sep=""),res=300,units="in",height=6,width=6)
-
-  par(mfrow=c(1,1))
-  par(mar = c(5.1, 5.1,5.1,2.1))
-  plot(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-       las = 1, cex.lab = 1.1, cex.axis = 1.1,
-       xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
-       type="n",main=paste("Scale independence"))
-  text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-       labels=powers,col="red")
-  text(15,.2,paste("Power used:",sft0$powerEstimate))
-  abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
-  # plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
-  #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
-  # text(sft0$fitIndices[,1],sft0$fitIndices[,5],labels=powers,col="red")
-dev.off()
+# #######################
+# cat("\nFinding soft threshold...\n")
+# powers = c(c(1:10), seq(from = 12, to=30, by=2))
+# 
+# sft = pickSoftThreshold(datCTL,
+#                         powerVector = powers,
+#                         RsquaredCut = .8,
+#                         corFnc="bicor",
+#                         networkType="signed",
+#                         verbose = 1)
+# 
+# sft.power = sft$powerEstimate
+sft.power = 12 ## above left for sanity check. 12 according to WGCNA FAQ
+# 
+# png(paste(Pfolder,"/softthreshold_CTL.png",sep=""),res=300,units="in",height=6,width=6)
+# 
+#   par(mfrow=c(1,1))
+#   par(mar = c(5.1, 5.1,5.1,2.1))
+#   plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        las = 1, cex.lab = 1.1, cex.axis = 1.1,
+#        xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
+#        type="n",main=paste("Scale independence"))
+#   text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        labels=powers,col="red")
+#   text(15,.2,paste("Power used:",sft.power))
+#   abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
+#   # plot(sft$fitIndices[,1],sft$fitIndices[,5],type="n",
+#   #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
+#   # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
+# dev.off()
+# ###############################################
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency(datCTL,
-                         # power=14,  #A Power used to build a consensus network
-                         power = sft0$powerEstimate,
+                         power = sft.power,
                          type="signed")
 diag(adjacencyPre)=0
 dissTOMPre   = 1-TOMsimilarity(adjacencyPre, TOMType="signed")
@@ -177,8 +168,8 @@ plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expr
 dev.off()
 
 # 3. set parameters for network algorithm
-sft.power = sft0$powerEstimate
-sft.power = 12; ##
+# sft.power = sft$powerEstimate ###set above
+# sft.power = 12; ## WGCNA FAQ
 deepSplit = 2;
 minModuleSize = 30;
 
@@ -265,43 +256,41 @@ module = fread(paste(Wfolder,"/wgcna_module-membership.txt", sep=""),data.table=
 
 ## MCI module network
 # 1. find optimal soft-threshold power for network construction
-cat("\nFinding soft threshold...\n")
-# colnames(datExpr) = convertKeys(colnames(datExpr))
-
-powers = c(c(1:10), seq(from = 12, to=30, by=2))
-
-sft = pickSoftThreshold(datMCI,
-                        powerVector = powers,
-                        RsquaredCut = .8,
-                        corFnc="bicor",
-                        networkType="signed",
-                        verbose = 1)
-
-sft0 = sft
-
-sft0
-
-png(paste(Pfolder,"/softthreshold_MCI.png",sep=""),res=300,units="in",height=6,width=6)
-
-par(mfrow=c(1,1))
-par(mar = c(5.1, 5.1,5.1,2.1))
-plot(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-     las = 1, cex.lab = 1.1, cex.axis = 1.1,
-     xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
-     type="n",main=paste("Scale independence"))
-text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-     labels=powers,col="red")
-text(15,.2,paste("Power used:",sft0$powerEstimate))
-abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
-# plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
-#      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
-# text(sft0$fitIndices[,1],sft0$fitIndices[,5],labels=powers,col="red")
-dev.off()
+#############################################
+# cat("\nFinding soft threshold...\n")
+# powers = c(c(1:10), seq(from = 12, to=30, by=2))
+# 
+# sft = pickSoftThreshold(datMCI,
+#                         powerVector = powers,
+#                         RsquaredCut = .8,
+#                         corFnc="bicor",
+#                         networkType="signed",
+#                         verbose = 1)
+# 
+# sft.power = sft$powerEstimate
+sft.power = 12 #WGCNA FAQ
+# 
+# png(paste(Pfolder,"/softthreshold_MCI.png",sep=""),res=300,units="in",height=6,width=6)
+# 
+# par(mfrow=c(1,1))
+# par(mar = c(5.1, 5.1,5.1,2.1))
+# plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#      las = 1, cex.lab = 1.1, cex.axis = 1.1,
+#      xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
+#      type="n",main=paste("Scale independence"))
+# text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#      labels=powers,col="red")
+# text(15,.2,paste("Power used:",sft.power))
+# abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
+# # plot(sft$fitIndices[,1],sft$fitIndices[,5],type="n",
+# #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
+# # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
+# dev.off()
+##########################################
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency(datMCI,
-                         # power=14,  #A Power used to build a consensus network
-                         power = sft0$powerEstimate,
+                         power = sft.power,
                          type="signed")
 diag(adjacencyPre)=0
 dissTOMPre   = 1-TOMsimilarity(adjacencyPre, TOMType="signed")
@@ -321,8 +310,8 @@ plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expr
 dev.off()
 
 # 3. set parameters for network algorithm
-sft.power = sft0$powerEstimate
-sft.power = 12; ##
+# sft.power = sft$powerEstimate ##set above
+# sft.power = 12; ## WGCNA FAQ
 deepSplit = 2;
 minModuleSize = 30;
 
@@ -386,10 +375,10 @@ dev.off()
 
 # SAVE MODULE MEMBERSHIP
 moduleMCI = list()
-colors = unique(moduleColorsMCI)
-for(y in 1:length(colors)){
-  genesInModule = colnames(datMCI)[which(moduleColorsMCI %in% colors[[y]])]
-  moduleMCI[[y]] = data.frame(color = colors[[y]], label = unique(netMCI$colors)[[y]], symbol = genesInModule)
+colorsMCI = unique(moduleColorsMCI)
+for(y in 1:length(colorsMCI)){
+  genesInModule = colnames(datMCI)[which(moduleColorsMCI %in% colorsMCI[[y]])]
+  moduleMCI[[y]] = data.frame(color = colorsMCI[[y]], label = unique(netMCI$colors)[[y]], symbol = genesInModule)
 }
 moduleMCI = ldply(moduleMCI)
 
@@ -405,18 +394,9 @@ fwrite(data.table(moduleMCI),
 moduleMCI = fread(paste(Wfolder,"/wgcna_module-membership_MCI.txt", sep=""),data.table=F)
 
 
-
-
-
-
-
-
-
-
-
-
-## network preservation analysis part
+## network preservation analysis
 message("Beginning network preservation analysis.")
+multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 multiColor = list(CTL = module$color, MCI = moduleMCI$color)
 mp = modulePreservation(multiExpr, multiColor,
                         referenceNetworks = 1,
@@ -486,11 +466,6 @@ for (p in 1:2){
 # If plotting into a file, close it
 dev.off();
 
-
-
-
-
-
 ## save preservation statistics
 for(i in 1:4){
   thing = mp$preservation[i][[1]][[1]][[2]]
@@ -499,37 +474,20 @@ for(i in 1:4){
 }
 
 
-
-
-
-
-## TODO this is mad too -- do we need to gsg the main group, then split it?
-## create and save overlap table
-## TODO kME style
 ## TODO can use adjacency matrices from above?
 
-# ## TODO i guess this doesn't work if it's not the same labels?  where do the labels go?
-# overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
-# odf = data.frame(overlap$countTable)
-# fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
-# opdf = data.frame(overlap$pTable)
-# fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
+## this function doesn't work if it's not the same length
+overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
+odf = data.frame(overlap$countTable)
+fwrite(odf,paste0(Pfolder,"/overlaps.csv"),row.names=T)
+opdf = data.frame(overlap$pTable)
+fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
 
 connCTL = intramodularConnectivity.fromExpr(datCTL,module$color)
 connMCI = intramodularConnectivity.fromExpr(datMCI,moduleMCI$label)
 
 overlapKME = overlapTableUsingKME(datCTL, datMCI,
                                   module$color, moduleMCI$label)
-
-
-
-# stop("stuff after here has more than one group")
-
-### saving a copy of the environment
-# save.image("~/psychgene/wgcnaworking.rdata.RData")
-
-
-
 
 png(paste(Pfolder,"/ME_networks_CTL.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 plotEigengeneNetworks(MEs,setLabels=rownames(datCTL))
@@ -594,7 +552,7 @@ sink()
 cat("\nPrinted to CTLtopHubs.txt.")
 
 topHubs = list()
-for (i in 1:length(colors)) {
+for (i in 1:length(colorsMCI)) {
   foo = moduleMCI$label==i-1
   foo = data.frame(moduleMCI$symbol[foo],connMCI$kWithin[foo],stringsAsFactors = F)
   foo = foo[order(foo$connMCI.kWithin.foo.,decreasing=T),]
@@ -608,14 +566,7 @@ sink()
 cat("\nPrinted to MCItopHubs.txt.")
 
 
-### saving a copy of the environment
-save.image("~/psychgene/wgcnaworking.rdata.RData")
-
-
-stop("blarg")
-
-
-## Gene set enrichment analysis for interesting module eigengenes
+## Gene set enrichment analysis for module eigengenes
 cat("\nPerforming gene set enrichment analysis for CTL modules.")
 
 # load gene names for hg19
@@ -657,37 +608,10 @@ cat("\nPathways in REACTOME")
 print(table(grepl("REACTOME", unique(go_terms$PATHWAY))))
 
 
-## TODO instead of 'significant' we need to go with 'disrupted'
-## pValuesHypergeo is a feature in overlapsusingKME, I think by module
-## though that may be more for figuring out which modules correspond to which
-## we can also sort by/note the zsummary and median rank
+# include all modules in GSER
+sig_mods = unique(colors)
 
-## decide some significant modules
-# fit = lm(as.matrix(MEs) ~ svobj$sv)
-# thing = residuals(fit)
-# sig_mods = list()
-# for(i in 1:ncol(MEs)){
-#   # foo = t.test(datExpr[phenos$FACTOR_dx == "AD",module$color %in% color],datExpr[phenos$FACTOR_dx == "CTL",module$color %in% color])
-#   foo = t.test(thing[phenos$FACTOR_dx == "AD",i],thing[phenos$FACTOR_dx == "CTL",i])
-#   if(foo$p.value < .05) {sig_mods[[i]] = labels2colors(i-1)}
-# }
-# sig_mods = compact(sig_mods)
-#---------
-# sig_mods = unique(as.character(graphDF$Module[graphDF$FDR < .05]))
-# sig_mods = as.character(metadata$colors[metadata$labels %in% sig_mods])
-#-----------
-fit = lm(as.matrix(MEs) ~ svobj$sv + phenos$FACTOR_dx)   ## TODO svobj is what
-### ahhh TODO this whole section is focused on dx comparison, gotta change it
-## maybe just output by kwithin, but include a bit on the mci/severity?
-thing = summary(fit)
-foo = laply(thing, '[[', "coefficients")
-sig_mods = list()
-for(i in 1:ncol(MEs)){
-  if(foo[i,ncol(foo),4] < .05) {sig_mods[[i]] = labels2colors(i-1)}
-}
-sig_mods = compact(sig_mods)
-
-geneUniverse = colnames(datExpr)
+geneUniverse = colnames(datCTL)
 
 go_terms = go_terms[go_terms$SYMBOL %in% geneUniverse, ]
 msig=go_terms
@@ -706,7 +630,7 @@ topValue = 5e3
 
 
 hypStats_save = list()
-for( i in 1:length(sig_mods)){
+for( i in 1:length(sig_mods)){  ##TODO include some information about overlaps in here?
   
   cat("\nRunning hypergeometric test for module:",sig_mods[[i]])
   
@@ -737,9 +661,18 @@ for( i in 1:length(sig_mods)){
   geneSetSize = lapply(msig.split, nrow)
   geneSetOut = universe - unlist(geneSetSize)
   
+  geneSetGenes = character()
+  for(q in 1:length(msig.split)){
+    doodad = unlist(msig.split[[q]][1])
+    doodad = doodad[doodad %in% gene_grab$symbol]
+    doodad = paste0(doodad,collapse = " ")
+    geneSetGenes[q] = doodad
+  }
+  
   # hypergeomtric p-values
   hypStats = data.frame(
     Module = sig_mods[[i]],
+    Genes = geneSetGenes,  ## not found?
     PATHWAY = names(msig.split),
     Population = universe, 
     Sample_success = unlist(overlaps),
@@ -778,3 +711,6 @@ fwrite(hypStats_save,file=paste(Wfolder,"/hypStats.csv",sep=""))
 
 hypStats_trunc = hypStats_save[hypStats_save$FDR < .05,]
 fwrite(hypStats_trunc,file=paste(Wfolder,"/GSER_filtered.csv",sep=""))
+
+### saving a copy of the environment TODO
+save.image("~/psychgene/wgcnaworking.rdata.RData")

@@ -12,6 +12,7 @@ tissues = c("whole_blood")
 ## GCH w/JH and WB
 
 ##### TODO binomial test thing.  get a number. understand it.
+## TODO deconvolution categories or pcs?
 
 # load these packages (install if needed)
 require(plyr)
@@ -446,6 +447,7 @@ for(tissue in tissues){
   loo_df = ldply(loo_save)
   fwrite(loo_df,file = paste0(metafolder,"/",tissue,"_loosave.txt"))
   
+  # res_df = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
   # ab = res_df[res_df$GeneSymbol %in% gene_filter$GeneSymbol, ]
   
   ## at least 3 studies are contributing to the gene
@@ -841,7 +843,7 @@ for(tissue in tissues){
   
   ## Directionality gene score
   cat("\nConstructing directionality gene score and sign test plot.")
-  res_df = res_df[order(res_df$P, decreasing = F), ]
+  res_df = res_df[order(res_df$P, decreasing = F), ]  ##order by diffex Pval
   
   majority = max(table(sign(res_df$arcsinh)))
   broom::tidy(binom.test(x = majority, n = nrow(res_df), p = 0.5, alternative = 'two.sided'))

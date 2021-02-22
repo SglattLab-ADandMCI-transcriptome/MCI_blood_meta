@@ -3,9 +3,6 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA for MCI blood studies
 ## GCH
 
-##TODO soft threshold
-##TODO deconvolution??
-
 require(data.table)
 require(WGCNA)
 require(plyr)
@@ -92,36 +89,38 @@ rownames(datExpr) = samples
 
 ## one-step automated gene network analysis
 # 1. find optimal soft-threshold power for network construction
-cat("\nFinding soft threshold...\n")
-# colnames(datExpr) = convertKeys(colnames(datExpr))
-
-powers = c(c(1:10), seq(from = 12, to=30, by=2))
-
-sft = pickSoftThreshold(datExpr,
-                        powerVector = powers,
-                        corFnc="bicor",
-                        networkType="signed",
-                        verbose = 1)
-
-sft0 = sft
-
-sft0
-
-png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width=6)
-
-  par(mfrow=c(1,1))
-  par(mar = c(5.1, 5.1,5.1,2.1))
-  plot(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-       las = 1, cex.lab = 1.1, cex.axis = 1.1,
-       xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
-       type="n",main=paste("Scale independence"))
-  text(sft0$fitIndices[,1],-sign(sft0$fitIndices[,3])*sft0$fitIndices[,2],
-       labels=powers,col="red")
-  abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
-  # plot(sft0$fitIndices[,1],sft0$fitIndices[,5],type="n",
-  #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
-  # text(sft0$fitIndices[,1],sft0$fitIndices[,5],labels=powers,col="red")
-dev.off()
+#########################################################
+# cat("\nFinding soft threshold...\n")
+# # colnames(datExpr) = convertKeys(colnames(datExpr))
+# 
+# powers = c(c(1:10), seq(from = 12, to=30, by=2))
+# 
+# sft = pickSoftThreshold(datExpr,
+#                         powerVector = powers,
+#                         corFnc="bicor",
+#                         networkType="signed",
+#                         verbose = 1)
+# 
+# sft.power = sft$powerEstimate
+sft.power = 12 ##WGCNA FAQ.  above left as sanity check.
+# 
+# png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width=6)
+# 
+#   par(mfrow=c(1,1))
+#   par(mar = c(5.1, 5.1,5.1,2.1))
+#   plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        las = 1, cex.lab = 1.1, cex.axis = 1.1,
+#        xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
+#        type="n",main=paste("Scale independence"))
+#   text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        labels=powers,col="red")
+#   text(15,.2,paste("Power used:",sft.power))
+#   abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
+#   # plot(sft$fitIndices[,1],sft$fitIndices[,5],type="n",
+#   #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
+#   # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
+# dev.off()
+##################################
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency((datExpr),
@@ -145,7 +144,7 @@ plotDendroAndColors(geneTreePre, mColorh, paste("dpSplt =",0:4), main = "Co-Expr
 dev.off()
 
 # 3. set parameters for network algorithm
-sft.power = 12; ##
+# sft.power = 12; ## set above
 deepSplit = 2;
 minModuleSize = 30;
 
@@ -301,6 +300,7 @@ conn = intramodularConnectivity.fromExpr(datExpr,module$color)
 
 ##intramodularConnectivity and hub genes, with significance from the meta-analysis
 cat("Comparing connectivity.\n")
+conn = data.frame(GeneSymbol = module$symbol,conn)  ## goes with module
 fwrite(conn,paste(Wfolder,"/intramodularConnectivity.txt",sep=""))
 meta = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
 meta$t.value = meta$arcsinh / meta$SE
@@ -333,6 +333,20 @@ plotModuleSignificance(
   xlas = 1
   )
 dev.off()
+
+tstats = tapply(module$sig, module$color, summary)
+tstats = ldply(tstats)
+tsds = tapply(module$sig, module$color, sd, na.rm = TRUE)
+tstats = data.frame(tstats,sd = tsds)
+fwrite(tstats, paste0(Wfolder,"/sig_stats.csv"))
+
+# sink(paste0(Wfolder,"/sig_stats.txt"))
+# print(tapply(module$sig, module$color, summary))
+# sink()
+
+fwrite(data.table(module),
+       file = paste(Wfolder,"/wgcna_module-membership.txt", sep=""),
+       quote = F, row.names = F, sep = "\t")
 
 
 cat("Generating top hub genes per module.\n")
