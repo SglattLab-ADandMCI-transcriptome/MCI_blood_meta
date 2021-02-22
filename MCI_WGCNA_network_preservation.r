@@ -3,6 +3,8 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA network preservation analysis for MCI blood studies
 ## GCH
 
+## TODO deconvolution? talk to jon re resid
+
 require(data.table)
 require(WGCNA)
 require(plyr)
@@ -400,6 +402,7 @@ multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 multiColor = list(CTL = module$color, MCI = moduleMCI$color)
 mp = modulePreservation(multiExpr, multiColor,
                         referenceNetworks = 1,
+                        ##### quickCor = 0,   ## default is 1, examples use 0  TODO test this
                         networkType = "signed",
                         verbose = 3)
 
@@ -407,8 +410,7 @@ saveRDS(mp, file = paste0(Wfolder,"/modulePreservation.RData"))
 
 mp = readRDS(paste0(Wfolder,"/modulePreservation.RData"))
 
-## TODO this is just copypasted from a tutorial, i need to figure out what i want
-## TODO something with the labels, i should recreate this in ggplot
+## TODO something with the labels
 sink(paste0(Pfolder,"/Preservation.txt"))
 ref = 1
 test = 2
@@ -420,7 +422,7 @@ print( cbind(statsObs[, c("medianRank.pres", "medianRank.qual")],
              signif(statsZ[, c("Zsummary.pres", "Zsummary.qual")], 2)) )
 sink()
 
-##TODO dying here right now, Inf zsummary
+##TODO dying here if not doing no-missingness, Inf zsummary, quickCor above?
 png(paste(Pfolder,"/Preservation.png",sep=""), res=300, units="in",
     height = 5.5, width = 11)
 # Module labels and module sizes are also contained in the results
@@ -474,8 +476,6 @@ for(i in 1:4){
 }
 
 
-## TODO can use adjacency matrices from above?
-
 ## this function doesn't work if it's not the same length
 overlap = overlapTable(mergedColors,mergedColorsMCI) # rows label1, columns label2
 odf = data.frame(overlap$countTable)
@@ -484,10 +484,21 @@ opdf = data.frame(overlap$pTable)
 fwrite(opdf,paste0(Pfolder,"/overlaps_p.csv"),row.names=T)
 
 connCTL = intramodularConnectivity.fromExpr(datCTL,module$color)
-connMCI = intramodularConnectivity.fromExpr(datMCI,moduleMCI$label)
+connMCI = intramodularConnectivity.fromExpr(datMCI,moduleMCI$color)
 
-overlapKME = overlapTableUsingKME(datCTL, datMCI,
-                                  module$color, moduleMCI$label)
+## this does not produce the same overlap table, strange TODO
+overlapKME = overlapTableUsingKME(dat1 = datCTL, dat2 = datMCI,
+                                  colorh1 = module$color, colorh2 = moduleMCI$color,
+                                  name1 = "CTL", name2 = "MCI",
+                                  omitGrey = TRUE,
+                                  datIsExpression = TRUE)
+
+saveRDS(overlapKME,paste0(Pfolder,"/overlapKME.rdata"))
+overlapKME = readRDS(paste0(Pfolder,"/overlapKME.rdata"))
+
+overp = data.frame(overlapKME$PvaluesHypergeo)
+fwrite(overp,paste0(Pfolder,"/overlaps_hypergo.csv"),row.names = T)
+
 
 png(paste(Pfolder,"/ME_networks_CTL.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 plotEigengeneNetworks(MEs,setLabels=rownames(datCTL))
@@ -630,7 +641,7 @@ topValue = 5e3
 
 
 hypStats_save = list()
-for( i in 1:length(sig_mods)){  ##TODO include some information about overlaps in here?
+for( i in 1:length(sig_mods)){
   
   cat("\nRunning hypergeometric test for module:",sig_mods[[i]])
   
@@ -712,5 +723,5 @@ fwrite(hypStats_save,file=paste(Wfolder,"/hypStats.csv",sep=""))
 hypStats_trunc = hypStats_save[hypStats_save$FDR < .05,]
 fwrite(hypStats_trunc,file=paste(Wfolder,"/GSER_filtered.csv",sep=""))
 
-### saving a copy of the environment TODO
+### saving a copy of the environment
 save.image("~/psychgene/wgcnaworking.rdata.RData")

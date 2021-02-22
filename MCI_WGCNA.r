@@ -3,6 +3,8 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA for MCI blood studies
 ## GCH
 
+## TODO deconvolution? talk to jon re resid
+
 require(data.table)
 require(WGCNA)
 require(plyr)
