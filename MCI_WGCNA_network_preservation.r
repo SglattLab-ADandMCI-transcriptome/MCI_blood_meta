@@ -43,16 +43,18 @@ phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
 phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
 
-# remove genes with any missingness
-badgenes = which(colSums(is.na(datExpr)) > 1)
-if(length(badgenes) > 0){
-  datExpr = datExpr[,-badgenes]
-}
-
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
+
+# remove genes with any missingness
+badgenes = which(colSums(is.na(datExpr)) > 1)
+bad = names(datExpr)[badgenes]
+if(length(badgenes) > 0){
+  datExpr = datExpr[,-badgenes]
+}
+write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_both.txt",sep=""))
 
 datCTL = datExpr[which(phenos$FACTOR_dx == "CTL"),]
 datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
@@ -93,6 +95,48 @@ datMCI = datMCI[gsgMCI$goodSamples,crossgenes]
 # datMCI = datMCI[gsgMCI$goodSamples,gsgMCI$goodGenes]
 phenosMCI = phenosMCI[gsgMCI$goodSamples,]
 rownames(datMCI) = phenosMCI$FACTOR_sampleID
+
+##Generate abundances PCs
+cat("Generating abundances principal components\n")
+abfiles = list.files("./deconvolution","abundances", full.names = T)
+ablist = list()
+for(file in 1:length(abfiles)){
+  ablist[[file]] = fread(abfiles[file], data.table=F)
+}
+abundances = ldply(ablist)
+abnames = abundances$V1
+abundances = abundances[,-1]
+row.names(abundances) = abnames
+abpc = prcomp(abundances)
+abpc3 = data.frame(abpc$x[,c(1:3)])
+names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
+all(datExprCovs$FACTOR_sampleID == row.names(abundances))  ##TRUE
+
+col = factor(datExprCovs$FACTOR_studyID)
+g = ggplot(abpc3, aes(x = `cells PC1`, y = `cells PC2`,
+                      col = col)) +
+  scale_color_brewer('Study ID', palette = 'Spectral')+
+  geom_point(size = 3) +
+  theme_minimal() +
+  theme(panel.border = element_rect(size=1,fill=NA),
+        axis.title = element_text(size =12),
+        axis.text=element_text(color='black',size=12))
+png(paste("./QCPlots/",tissue,"_PCA_deconvolution.png", sep =""), res=300,units="in",height = 6, width = 10)
+print(g)
+dev.off()
+## After this QC we are going to actually use collapsed categories
+groups = c("B.cells|Plasma", "T.cells", "NK.cells", "Monocytes|Macro", "Dendritic", "Mast", "Eosino|Neutrophils")
+group_name = c("B.cells", "T.cells", "NK.cells", "Monocytes", "Dendritic.cells", "Mast.cells", "Granulocytes")
+ab_collapse = list()
+for(i in 1:length(groups)){
+  include = grep(groups[i], names(abundances))
+  foo = rowSums(abundances[,include])
+  foo = data.frame(foo)
+  names(foo) = group_name[i]
+  ab_collapse[[i]] = foo
+}
+ab_collapse = data.frame(ab_collapse)
+names(ab_collapse) = group_name
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0
@@ -402,7 +446,7 @@ multiExpr = list(CTL = list(data = datCTL), MCI = list(data = datMCI))
 multiColor = list(CTL = module$color, MCI = moduleMCI$color)
 mp = modulePreservation(multiExpr, multiColor,
                         referenceNetworks = 1,
-                        ##### quickCor = 0,   ## default is 1, examples use 0  TODO test this
+                        quickCor = 0,   ## default is 1, examples use 0  TODO test this
                         networkType = "signed",
                         verbose = 3)
 

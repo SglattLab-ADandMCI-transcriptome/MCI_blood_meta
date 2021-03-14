@@ -96,8 +96,19 @@ for(tissue in tissues){
   png(paste("./QCPlots/",tissue,"_PCA_deconvolution.png", sep =""), res=300,units="in",height = 6, width = 10)
   print(g)
   dev.off()
-  ## TODO decide on doing 7 categories for actual work instead
-  
+  ## After this QC we are going to actually use collapsed categories
+  groups = c("B.cells|Plasma", "T.cells", "NK.cells", "Monocytes|Macro", "Dendritic", "Mast", "Eosino|Neutrophils")
+  group_name = c("B.cells", "T.cells", "NK.cells", "Monocytes", "Dendritic.cells", "Mast.cells", "Granulocytes")
+  ab_collapse = list()
+  for(i in 1:length(groups)){
+    include = grep(groups[i], names(abundances))
+    foo = rowSums(abundances[,include])
+    foo = data.frame(foo)
+    names(foo) = group_name[i]
+    ab_collapse[[i]] = foo
+  }
+  ab_collapse = data.frame(ab_collapse)
+  names(ab_collapse) = group_name
   
   ## DGE per tissue per study, non-scaled data
   # genes = datExprTissue$SYMBOL
@@ -195,7 +206,7 @@ for(tissue in tissues){
     
     if(length(low_var_filter) > 0){y = y[,!colnames(y) %in% names(low_var_filter)]}
 
-    ##include first 3 principal components of blood cell abundances
+    ##include blood cell abundances, without mast cells to avoid math singularity
     abindex = numeric()
     subjects = x$FACTOR_sampleID
     for(j in 1:length(subjects)){
@@ -203,7 +214,7 @@ for(tissue in tissues){
     }
     print("all(subjects == abnames[abindex])")
     print(all(subjects == abnames[abindex]))
-    abtemp = abpc3[abindex,]
+    abtemp = ab_collapse[abindex,-grep("Mast",names(ab_collapse))]
     predictors = data.frame(predictors,abtemp)
     
     ## Surrogate variable analysis - default method 

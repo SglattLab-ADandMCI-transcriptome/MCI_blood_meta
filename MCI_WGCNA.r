@@ -57,6 +57,48 @@ datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
 
+##Generate abundances PCs
+cat("Generating abundances principal components\n")
+abfiles = list.files("./deconvolution","abundances", full.names = T)
+ablist = list()
+for(file in 1:length(abfiles)){
+  ablist[[file]] = fread(abfiles[file], data.table=F)
+}
+abundances = ldply(ablist)
+abnames = abundances$V1
+abundances = abundances[,-1]
+row.names(abundances) = abnames
+abpc = prcomp(abundances)
+abpc3 = data.frame(abpc$x[,c(1:3)])
+names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
+all(datExprCovs$FACTOR_sampleID == row.names(abundances))  ##TRUE
+
+col = factor(datExprCovs$FACTOR_studyID)
+g = ggplot(abpc3, aes(x = `cells PC1`, y = `cells PC2`,
+                      col = col)) +
+  scale_color_brewer('Study ID', palette = 'Spectral')+
+  geom_point(size = 3) +
+  theme_minimal() +
+  theme(panel.border = element_rect(size=1,fill=NA),
+        axis.title = element_text(size =12),
+        axis.text=element_text(color='black',size=12))
+png(paste("./QCPlots/",tissue,"_PCA_deconvolution.png", sep =""), res=300,units="in",height = 6, width = 10)
+print(g)
+dev.off()
+## After this QC we are going to actually use collapsed categories
+groups = c("B.cells|Plasma", "T.cells", "NK.cells", "Monocytes|Macro", "Dendritic", "Mast", "Eosino|Neutrophils")
+group_name = c("B.cells", "T.cells", "NK.cells", "Monocytes", "Dendritic.cells", "Mast.cells", "Granulocytes")
+ab_collapse = list()
+for(i in 1:length(groups)){
+  include = grep(groups[i], names(abundances))
+  foo = rowSums(abundances[,include])
+  foo = data.frame(foo)
+  names(foo) = group_name[i]
+  ab_collapse[[i]] = foo
+}
+ab_collapse = data.frame(ab_collapse)
+names(ab_collapse) = group_name
+
 ## run goodsamplesgenes to ensure suitability of samples and genes
 cat("\nRunning GoodSamplesGenes.")
 gsg = goodSamplesGenes(datExpr, verbose = 3);
@@ -402,6 +444,7 @@ fwrite(coefs,file=paste(Wfolder,"/ME_LM.txt",sep=""))
 
 
 ## sva a couple SVs and account for them in the lm fit with eigengenes
+## TODO put the stuff in here with the phenos or figure this out god i'm sleepy
 # mod = model.matrix(~ FACTOR_dx,phenos)
 mod = model.matrix(~ FACTOR_dx,phenos)
 svobj = sva(t(MEs), mod)
