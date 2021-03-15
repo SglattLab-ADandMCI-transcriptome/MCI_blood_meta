@@ -48,6 +48,39 @@ datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
 
+##Generate abundances categories
+cat("Generating abundances categories\n")
+abfiles = list.files("./deconvolution","abundances", full.names = T)
+ablist = list()
+for(file in 1:length(abfiles)){
+  ablist[[file]] = fread(abfiles[file], data.table=F)
+}
+abundances = ldply(ablist)
+abnames = abundances$V1
+abundances = abundances[,-1]
+row.names(abundances) = abnames
+## use collapsed categories
+groups = c("B.cells|Plasma", "T.cells", "NK.cells", "Monocytes|Macro", "Dendritic", "Mast", "Eosino|Neutrophils")
+group_name = c("B.cells", "T.cells", "NK.cells", "Monocytes", "Dendritic.cells", "Mast.cells", "Granulocytes")
+ab_collapse = list()
+for(i in 1:length(groups)){
+  include = grep(groups[i], names(abundances))
+  foo = rowSums(abundances[,include])
+  foo = data.frame(foo)
+  names(foo) = group_name[i]
+  ab_collapse[[i]] = foo
+}
+ab_collapse = data.frame(ab_collapse)
+names(ab_collapse) = group_name
+ab_collapse = data.frame(row.names(ab_collapse),ab_collapse)
+names(ab_collapse)[1] = "FACTOR_sampleID"
+
+tempab = list()
+for(i in 1:nrow(phenos)){
+  tempab[[i]] = ab_collapse[which(ab_collapse$FACTOR_sampleID == phenos$FACTOR_sampleID[i]),]
+}
+ab_collapse = ldply(tempab)
+
 # remove genes with any missingness
 badgenes = which(colSums(is.na(datExpr)) > 1)
 bad = names(datExpr)[badgenes]
@@ -56,8 +89,23 @@ if(length(badgenes) > 0){
 }
 write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_both.txt",sep=""))
 
-datCTL = datExpr[which(phenos$FACTOR_dx == "CTL"),]
-datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
+## lm to resid out deconvolution
+fitPhenos = cbind(phenos,ab_collapse)
+fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
+# fitPhenos = fitPhenos[,-grep("sampleID|Mast|dx",names(fitPhenos))]
+fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
+           FACTOR_studyID + B.cells + T.cells + NK.cells +
+           Monocytes + Dendritic.cells +
+           Mast.cells + Granulocytes,
+         data = fitPhenos)
+
+residual = resid(fit)
+residual = data.frame(residual)
+row.names(residual) = phenos$FACTOR_sampleID
+
+
+datCTL = residual[which(phenos$FACTOR_dx == "CTL"),]
+datMCI = residual[which(phenos$FACTOR_dx == "MCI"),]
 
 phenosCTL = phenos[which(phenos$FACTOR_dx == "CTL"),]
 phenosMCI = phenos[which(phenos$FACTOR_dx == "MCI"),]
@@ -96,47 +144,6 @@ datMCI = datMCI[gsgMCI$goodSamples,crossgenes]
 phenosMCI = phenosMCI[gsgMCI$goodSamples,]
 rownames(datMCI) = phenosMCI$FACTOR_sampleID
 
-##Generate abundances PCs
-cat("Generating abundances principal components\n")
-abfiles = list.files("./deconvolution","abundances", full.names = T)
-ablist = list()
-for(file in 1:length(abfiles)){
-  ablist[[file]] = fread(abfiles[file], data.table=F)
-}
-abundances = ldply(ablist)
-abnames = abundances$V1
-abundances = abundances[,-1]
-row.names(abundances) = abnames
-abpc = prcomp(abundances)
-abpc3 = data.frame(abpc$x[,c(1:3)])
-names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
-all(datExprCovs$FACTOR_sampleID == row.names(abundances))  ##TRUE
-
-col = factor(datExprCovs$FACTOR_studyID)
-g = ggplot(abpc3, aes(x = `cells PC1`, y = `cells PC2`,
-                      col = col)) +
-  scale_color_brewer('Study ID', palette = 'Spectral')+
-  geom_point(size = 3) +
-  theme_minimal() +
-  theme(panel.border = element_rect(size=1,fill=NA),
-        axis.title = element_text(size =12),
-        axis.text=element_text(color='black',size=12))
-png(paste("./QCPlots/",tissue,"_PCA_deconvolution.png", sep =""), res=300,units="in",height = 6, width = 10)
-print(g)
-dev.off()
-## After this QC we are going to actually use collapsed categories
-groups = c("B.cells|Plasma", "T.cells", "NK.cells", "Monocytes|Macro", "Dendritic", "Mast", "Eosino|Neutrophils")
-group_name = c("B.cells", "T.cells", "NK.cells", "Monocytes", "Dendritic.cells", "Mast.cells", "Granulocytes")
-ab_collapse = list()
-for(i in 1:length(groups)){
-  include = grep(groups[i], names(abundances))
-  foo = rowSums(abundances[,include])
-  foo = data.frame(foo)
-  names(foo) = group_name[i]
-  ab_collapse[[i]] = foo
-}
-ab_collapse = data.frame(ab_collapse)
-names(ab_collapse) = group_name
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
 # foo = colSums(is.na(datExpr))==0
@@ -152,8 +159,6 @@ names(ab_collapse) = group_name
 # rownames(datExpr) = samples
 #
 # cat("\nWGCNA genes:",length(genes),"\n")
-
-
 
 ## get ctl modules
 ## one-step automated gene network analysis
