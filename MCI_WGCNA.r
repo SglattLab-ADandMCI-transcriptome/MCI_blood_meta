@@ -40,23 +40,17 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
-
 ## Remove ROSMAP batch 3 due to low gene overlap with other studies
-datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
-phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
-
-# ##remove any missingness
-# badgenes = which(colSums(is.na(datExpr)) > 1)
-# if(length(badgenes) > 0){
-#   datExpr = datExpr[,-badgenes]
-# }
+r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
+datExpr = datExpr[-r3,]
+samples = samples[-r3]
+phenos = phenos[-r3,]
 
 ## Limit to Dx we care about
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
-
 
 ##Generate abundances categories
 cat("Generating abundances categories\n")
@@ -82,6 +76,34 @@ for(i in 1:length(groups)){
 }
 ab_collapse = data.frame(ab_collapse)
 names(ab_collapse) = group_name
+ab_collapse = data.frame(row.names(ab_collapse),ab_collapse)
+names(ab_collapse)[1] = "FACTOR_sampleID"
+
+tempab = list()
+for(i in 1:nrow(phenos)){
+  tempab[[i]] = ab_collapse[which(ab_collapse$FACTOR_sampleID == phenos$FACTOR_sampleID[i]),]
+}
+ab_collapse = ldply(tempab)
+
+##remove any missingness
+badgenes = which(colSums(is.na(datExpr)) > 1)
+if(length(badgenes) > 0){
+  datExpr = datExpr[,-badgenes]
+}
+
+## lm to resid out deconvolution
+fitPhenos = cbind(phenos,ab_collapse)
+fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
+# fitPhenos = fitPhenos[,-grep("sampleID|Mast|dx",names(fitPhenos))]
+fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
+           FACTOR_studyID + B.cells + T.cells + NK.cells +
+           Monocytes + Dendritic.cells +
+           Mast.cells + Granulocytes,
+         data = fitPhenos)
+
+residual = resid(fit)
+residual = data.frame(residual)
+row.names(residual) = phenos$FACTOR_sampleID
 
 
 ## run goodsamplesgenes to ensure suitability of samples and genes
@@ -258,7 +280,7 @@ module = fread(paste(Wfolder,"/wgcna_module-membership.txt", sep=""),data.table=
 
 ## Generate plots for differential expresison among groups
 cat("Plotting associations.\n")
-phenos = phenos[phenos$FACTOR_sampleID %in% rownames(datExpr),]
+phenos = phenos[phenos$FACTOR_sampleID %in% rownames(datExpr),]  ## TODO some ending up false somehow
 
 ## The boxplots are the interquartile range, whiskers are extended to 1.5 IQR
 ## The lines are medians, and the notches (from ggplot2 docs):

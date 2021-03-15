@@ -135,6 +135,7 @@ for(tissue in tissues){
   
   study_id = unique(datExprTissue$FACTOR_studyID)
   save_results = list()
+  i=1
   for( i in 1:length(study_id)){
     cat("\nStudy-wise differential expression analysis:",tissue,i,"~",study_id[[i]])
     expr.tmp = datExprTissue[datExprTissue$FACTOR_studyID %in% study_id[[i]],]
@@ -247,6 +248,7 @@ for(tissue in tissues){
     # predictors$FACTOR_dx = as.factor(predictors$FACTOR_dx)
     # predictors$FACTOR_dx = relevel(predictors$FACTOR_dx, ref = controllabel)
     # design = model.matrix( ~ -1 + ., predictors)
+    predictors = data.frame(predictors,ab_collapse[abindex,grep("Mast",names(ab_collapse))]) ## put it back for lm
     design = model.matrix( ~ ., predictors)
     design = design[,!grepl(controllabel, colnames(design))]
     

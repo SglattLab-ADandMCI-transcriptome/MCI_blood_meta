@@ -38,10 +38,11 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
-
 ## Remove ROSMAP batch 3 due to low gene overlap with other studies
-datExpr = datExpr[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
-phenos = phenos[-which(phenos$FACTOR_studyID=="ROSMAP3"),]
+r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
+datExpr = datExpr[-r3,]
+samples = samples[-r3]
+phenos = phenos[-r3,]
 
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
