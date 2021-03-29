@@ -715,6 +715,8 @@ for(tissue in tissues){
 
   
   ## Forest plots
+  ## TODO reorder so largest study is close to result, sort by study size
+  ## TODO dot size proportional to weight in meta analysis, with weight written on right hand side
   cat("\nConstructing meta forest plots.")
   pdf(paste(forestfolder,"/",tissue,"_FORESTPLOT_all.pdf",sep=""))
   
