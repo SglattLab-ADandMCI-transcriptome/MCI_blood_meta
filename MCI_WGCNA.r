@@ -3,8 +3,6 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## WGCNA for MCI blood studies
 ## GCH
 
-## TODO deconvolution? talk to jon re resid
-
 require(data.table)
 require(WGCNA)
 require(plyr)
@@ -93,17 +91,19 @@ if(length(badgenes) > 0){
 
 ## lm to resid out deconvolution
 fitPhenos = cbind(phenos,ab_collapse)
-fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
+# fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
 # fitPhenos = fitPhenos[,-grep("sampleID|Mast|dx",names(fitPhenos))]
-fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
-           FACTOR_studyID + B.cells + T.cells + NK.cells +
-           Monocytes + Dendritic.cells +
-           Mast.cells + Granulocytes,
-         data = fitPhenos)
-
-residual = resid(fit)
-residual = data.frame(residual)
-row.names(residual) = phenos$FACTOR_sampleID
+# fit = lm(as.matrix(datExpr) ~ FACTOR_studyID, data = fitPhenos)  ## are we resid'ing out too much?
+# fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
+#            FACTOR_studyID + B.cells + T.cells + NK.cells +
+#            Monocytes + Dendritic.cells +
+#            Mast.cells + Granulocytes,
+#          data = fitPhenos)
+# 
+# residual = resid(fit)
+# residual = data.frame(residual)
+# row.names(residual) = phenos$FACTOR_sampleID
+# datExpr = residual
 
 
 ## run goodsamplesgenes to ensure suitability of samples and genes
@@ -172,7 +172,7 @@ png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width
   # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
 dev.off()
 #################################
-sft.power = 12 ##WGCNA FAQ.
+# sft.power = 12 ##WGCNA FAQ.
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency((datExpr),
@@ -270,7 +270,7 @@ module = ldply(module)
 mcounts = data.frame(table(module$label))
 mcounts = data.frame(c(0:(nrow(mcounts)-1)),labels2colors(c(0:(nrow(mcounts)-1))),mcounts$Freq)
 names(mcounts) = c("ME","color","frequency")
-fwrite(mcounts,file = paste0(Wfolder,"/wgcna_module-membership_counts.txt"))
+fwrite(mcounts,file = paste0(Wfolder,"/wgcna_module-membership_counts.csv"))
 
 fwrite(data.table(module),
        file = paste(Wfolder,"/wgcna_module-membership.txt", sep=""),
@@ -280,7 +280,7 @@ module = fread(paste(Wfolder,"/wgcna_module-membership.txt", sep=""),data.table=
 
 ## Generate plots for differential expresison among groups
 cat("Plotting associations.\n")
-phenos = phenos[phenos$FACTOR_sampleID %in% rownames(datExpr),]  ## TODO some ending up false somehow
+phenos = phenos[phenos$FACTOR_sampleID %in% rownames(datExpr),]
 
 ## The boxplots are the interquartile range, whiskers are extended to 1.5 IQR
 ## The lines are medians, and the notches (from ggplot2 docs):
@@ -292,9 +292,9 @@ toplot = list()
 col = numeric()
 for(i in 1:length(colors)){
   toplot[[i*2-1]] = MEs[phenos$FACTOR_dx == "CTL",i]
-  toplot[[i*2]] = MEs[phenos$FACTOR_dx == "AD",i]
+  toplot[[i*2]] = MEs[phenos$FACTOR_dx == "MCI",i]
   names(toplot)[[i*2-1]] = paste(i-1,"CTL")
-  names(toplot)[[i*2]] = paste(labels2colors(i-1),"AD")
+  names(toplot)[[i*2]] = paste(labels2colors(i-1),"MCI")
   col[c(i*2-1,i*2)] = labels2colors(i-1)
   # png(paste(Pfolder,"/ME",i,".png",sep=""), res=300, units="in",height = 5.5, width = 8)
   # # plot(1:nrow(MEs),MEs[,i],##residuals(fit)[,i],
@@ -309,7 +309,6 @@ for(i in 1:length(colors)){
 }
 col[col=="black"] = "dimgray"
 
-png(paste(Pfolder,"/ME_diffex.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 # par(mar = c(7, 4, 4, 2) + 0.1)
 # boxplot(toplot,names=names(toplot),pars=list(las = 2),col=col,ylab = "ME Value")
 # title(main = "Module Eigengene Differential Expression")
@@ -340,6 +339,7 @@ g = ggplot(df_plot, aes(x = label, y = value, fill = label, group = interaction(
   labs(title = "Eigengene Differential Expression",
        subtitle = paste0(unique(df_plot$Dx)[1]," (left) vs ",unique(df_plot$Dx)[2]," (right)")) +
   coord_cartesian(ylim = c(-.06,.06))
+png(paste(Pfolder,"/ME_diffex.png",sep=""), res=300, units="in",height = 5.5, width = 8)
 print(g)
 dev.off()
 
@@ -353,7 +353,7 @@ conn = intramodularConnectivity.fromExpr(datExpr,module$color)
 ##intramodularConnectivity and hub genes, with significance from the meta-analysis
 cat("Comparing connectivity.\n")
 conn = data.frame(GeneSymbol = module$symbol,conn)  ## goes with module
-fwrite(conn,paste(Wfolder,"/intramodularConnectivity.txt",sep=""))
+fwrite(conn,paste(Wfolder,"/intramodularConnectivity.csv",sep=""))
 meta = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
 meta$t.value = meta$arcsinh / meta$SE
 module$sig = NA
@@ -419,7 +419,7 @@ cat("\nPrinted to topHubs.txt.")
 
 ## Create linear model with eigengenes
 cat("\nCreating linear model.")
-mod = model.matrix(~ FACTOR_dx,phenos)
+# mod = model.matrix(~ FACTOR_dx,phenos)
 fit = lm(as.matrix(MEs) ~ phenos$FACTOR_dx)
 
 coefs = coef(summary(fit))
@@ -448,11 +448,10 @@ print(
 )
 dev.off()
 
-fwrite(coefs,file=paste(Wfolder,"/ME_LM.txt",sep=""))
+fwrite(coefs,file=paste(Wfolder,"/ME_LM.csv",sep=""))
 
 
 ## sva a couple SVs and account for them in the lm fit with eigengenes
-## TODO put the stuff in here with the phenos or figure this out god i'm sleepy
 # mod = model.matrix(~ FACTOR_dx,phenos)
 mod = model.matrix(~ FACTOR_dx,phenos)
 svobj = sva(t(MEs), mod)
@@ -490,8 +489,8 @@ g = ggplot(df_plot, aes(x = label, y = value, fill = label, group = interaction(
 print(g)
 dev.off()
 
-save(svobj,file=paste(Wfolder,"/ME_SVA_OBJ.Rdata",sep=""))
-fwrite(coef(summary(fit)),file=paste(Wfolder,"/ME_SVA_LM.txt",sep=""))
+saveRDS(svobj,file=paste(Wfolder,"/ME_SVA_OBJ.Rdata",sep=""))
+fwrite(coef(summary(fit)),file=paste(Wfolder,"/ME_SVA_LM.csv",sep=""))
 
 
 ## Gene set enrichment analysis for interesting module eigengenes
@@ -542,8 +541,8 @@ print(table(grepl("REACTOME", unique(go_terms$PATHWAY))))
 # thing = residuals(fit)
 # sig_mods = list()
 # for(i in 1:ncol(MEs)){
-#   # foo = t.test(datExpr[phenos$FACTOR_dx == "AD",module$color %in% color],datExpr[phenos$FACTOR_dx == "CTL",module$color %in% color])
-#   foo = t.test(thing[phenos$FACTOR_dx == "AD",i],thing[phenos$FACTOR_dx == "CTL",i])
+#   # foo = t.test(datExpr[phenos$FACTOR_dx == "MCI",module$color %in% color],datExpr[phenos$FACTOR_dx == "CTL",module$color %in% color])
+#   foo = t.test(thing[phenos$FACTOR_dx == "MCI",i],thing[phenos$FACTOR_dx == "CTL",i])
 #   if(foo$p.value < .05) {sig_mods[[i]] = labels2colors(i-1)}
 # }
 # sig_mods = compact(sig_mods)

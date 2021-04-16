@@ -11,9 +11,6 @@ tissues = c("whole_blood")
 ## meta analysis for AD/MCI or whatever
 ## GCH w/JH and WB
 
-##### TODO binomial test thing.  get a number. understand it.
-## TODO deconvolution categories or pcs?
-
 # load these packages (install if needed)
 require(plyr)
 require(ggplot2)
@@ -84,12 +81,16 @@ for(tissue in tissues){
   names(abpc3) = c("cells PC1", "cells PC2", "cells PC3")
   all(datExprCovs$FACTOR_sampleID == row.names(abundances))  ##TRUE
   
+  pca_var = (abpc$sdev^2)/sum(abpc$sdev^2)*100
+  pca_labels = paste("PC", 1:length(pca_var), " (", round(pca_var, 2), "%)", sep= "")
   col = factor(datExprCovs$FACTOR_studyID)
   g = ggplot(abpc3, aes(x = `cells PC1`, y = `cells PC2`,
                             col = col)) +
       scale_color_brewer('Study ID', palette = 'Spectral')+
       geom_point(size = 3) +
       theme_minimal() +
+      xlab(pca_labels[1]) +
+      ylab(pca_labels[2]) +
       theme(panel.border = element_rect(size=1,fill=NA),
             axis.title = element_text(size =12),
             axis.text=element_text(color='black',size=12))
@@ -715,8 +716,7 @@ for(tissue in tissues){
 
   
   ## Forest plots
-  ## TODO reorder so largest study is close to result, sort by study size
-  ## TODO dot size proportional to weight in meta analysis, with weight written on right hand side
+  ## these are remade later in another script
   cat("\nConstructing meta forest plots.")
   pdf(paste(forestfolder,"/",tissue,"_FORESTPLOT_all.pdf",sep=""))
   
