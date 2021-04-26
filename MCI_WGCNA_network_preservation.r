@@ -38,11 +38,11 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
-## Remove ROSMAP batch 3 due to low gene overlap with other studies
-r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
-datExpr = datExpr[-r3,]
-samples = samples[-r3]
-phenos = phenos[-r3,]
+# ## Remove ROSMAP batch 3 due to low gene overlap with other studies TODO
+# r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
+# datExpr = datExpr[-r3,]
+# samples = samples[-r3]
+# phenos = phenos[-r3,]
 
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
@@ -82,31 +82,32 @@ for(i in 1:nrow(phenos)){
 }
 ab_collapse = ldply(tempab)
 
-# remove genes with any missingness
-badgenes = which(colSums(is.na(datExpr)) > 1)
-bad = names(datExpr)[badgenes]
-if(length(badgenes) > 0){
-  datExpr = datExpr[,-badgenes]
-}
-write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_both.txt",sep=""))
+# # remove genes with any missingness  TODO
+# badgenes = which(colSums(is.na(datExpr)) > 1)
+# bad = names(datExpr)[badgenes]
+# if(length(badgenes) > 0){
+#   datExpr = datExpr[,-badgenes]
+# }
+# write(bad, file = paste(Wfolder,"/WGCNA_SamplesGenes_Removed_both.txt",sep=""))
 
-## lm to resid out deconvolution
-fitPhenos = cbind(phenos,ab_collapse)
-fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
-# fitPhenos = fitPhenos[,-grep("sampleID|Mast|dx",names(fitPhenos))]
-fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
-           FACTOR_studyID + B.cells + T.cells + NK.cells +
-           Monocytes + Dendritic.cells +
-           Mast.cells + Granulocytes,
-         data = fitPhenos)
+# ## lm to resid out deconvolution  TODO
+# fitPhenos = cbind(phenos,ab_collapse)
+# fitPhenos = fitPhenos[,-grep("sampleID|dx",names(fitPhenos))]
+# # fitPhenos = fitPhenos[,-grep("sampleID|Mast|dx",names(fitPhenos))]
+# fit = lm(as.matrix(datExpr) ~ FACTOR_age + FACTOR_sex + FACTOR_age^2 +
+#            FACTOR_studyID + B.cells + T.cells + NK.cells +
+#            Monocytes + Dendritic.cells +
+#            Mast.cells + Granulocytes,
+#          data = fitPhenos)
+# 
+# residual = resid(fit)
+# residual = data.frame(residual)
+# row.names(residual) = phenos$FACTOR_sampleID
+# datExpr = residual
 
-residual = resid(fit)
-residual = data.frame(residual)
-row.names(residual) = phenos$FACTOR_sampleID
 
-
-datCTL = residual[which(phenos$FACTOR_dx == "CTL"),]
-datMCI = residual[which(phenos$FACTOR_dx == "MCI"),]
+datCTL = datExpr[which(phenos$FACTOR_dx == "CTL"),]
+datMCI = datExpr[which(phenos$FACTOR_dx == "MCI"),]
 
 phenosCTL = phenos[which(phenos$FACTOR_dx == "CTL"),]
 phenosMCI = phenos[which(phenos$FACTOR_dx == "MCI"),]

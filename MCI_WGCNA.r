@@ -38,17 +38,47 @@ genes = names(datExpr)
 samples = datRaw$FACTOR_sampleID
 phenos = datRaw[which(grepl("FACTOR_",names(datRaw)))]
 
-## Remove ROSMAP batch 3 due to low gene overlap with other studies
-r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
-datExpr = datExpr[-r3,]
-samples = samples[-r3]
-phenos = phenos[-r3,]
+# ## Remove ROSMAP batch 3 due to low gene overlap with other studies
+# r3 = which(phenos$FACTOR_studyID=="ROSMAP3")
+# datExpr = datExpr[-r3,]
+# samples = samples[-r3]
+# phenos = phenos[-r3,]
 
 ## Limit to Dx we care about
 gooddx = grep("(MCI|CTL)$",phenos$FACTOR_dx)
 datExpr = datExpr[gooddx,]
 samples = samples[gooddx]
 phenos = phenos[gooddx,]
+
+
+
+
+
+
+
+
+# ## remove any missingness
+# ## may or may not do this TODO
+# badgenes = which(colSums(is.na(datExpr)) > 1)
+# if(length(badgenes) > 0){
+#   datExpr = datExpr[,-badgenes]
+# }
+
+# ## smaller study set for testing TODO
+# keepers = grep("ROSMAP|AddNeuroMed|MCSA|ADNI|Shigemizu",phenos$FACTOR_studyID)
+# datExpr = datExpr[keepers,]
+# samples = samples[keepers]
+# phenos = phenos[keepers,]
+
+
+
+
+
+
+
+
+
+
 
 ##Generate abundances categories
 cat("Generating abundances categories\n")
@@ -83,11 +113,6 @@ for(i in 1:nrow(phenos)){
 }
 ab_collapse = ldply(tempab)
 
-##remove any missingness
-badgenes = which(colSums(is.na(datExpr)) > 1)
-if(length(badgenes) > 0){
-  datExpr = datExpr[,-badgenes]
-}
 
 ## lm to resid out deconvolution
 fitPhenos = cbind(phenos,ab_collapse)
@@ -121,6 +146,7 @@ datExpr = datExpr[gsg$goodSamples,gsg$goodGenes]
 genes = genes[gsg$goodGenes]
 samples = samples[gsg$goodSamples]
 phenos = phenos[gsg$goodSamples,]
+fitPhenos = fitPhenos[gsg$goodSamples,]
 rownames(datExpr) = samples
 
 # ## ComBat with studies as batches, so must delete all genes with ANY NA
@@ -143,36 +169,76 @@ rownames(datExpr) = samples
 # 1. find optimal soft-threshold power for network construction
 ########################################################
 cat("\nFinding soft threshold...\n")
-# colnames(datExpr) = convertKeys(colnames(datExpr))
-
-powers = c(c(1:10), seq(from = 12, to=30, by=2))
-
-sft = pickSoftThreshold(datExpr,
-                        powerVector = powers,
-                        corFnc="bicor",
-                        networkType="signed",
-                        verbose = 1)
-
-sft.power = sft$powerEstimate
-
-png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width=6)
-
-  par(mfrow=c(1,1))
-  par(mar = c(5.1, 5.1,5.1,2.1))
-  plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
-       las = 1, cex.lab = 1.1, cex.axis = 1.1,
-       xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
-       type="n",main=paste("Scale independence"))
-  text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
-       labels=powers,col="red")
-  text(15,.2,paste("Power used:",sft.power))
-  abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
-  # plot(sft$fitIndices[,1],sft$fitIndices[,5],type="n",
-  #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
-  # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
-dev.off()
+# # colnames(datExpr) = convertKeys(colnames(datExpr))
+# 
+# powers = c(c(1:10), seq(from = 12, to=30, by=2))
+# 
+# sft = pickSoftThreshold(datExpr,
+#                         powerVector = powers,
+#                         corFnc="bicor",
+#                         networkType="signed",
+#                         verbose = 1)
+# 
+# sft.power = sft$powerEstimate
+# 
+# png(paste(Pfolder,"/softthreshold.png",sep=""),res=300,units="in",height=6,width=6)
+# 
+#   par(mfrow=c(1,1))
+#   par(mar = c(5.1, 5.1,5.1,2.1))
+#   plot(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        las = 1, cex.lab = 1.1, cex.axis = 1.1,
+#        xlab="Soft Threshold (power)",ylab=expression(paste("SFT, signed R"^2)),
+#        type="n",main=paste("Scale independence"))
+#   text(sft$fitIndices[,1],-sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+#        labels=powers,col="red")
+#   text(15,.2,paste("Power used:",sft.power))
+#   abline(h=0.80,col="dodgerblue3", lty=2)    #CHOOSE A  R^2 CUT-OFF OF H
+#   # plot(sft$fitIndices[,1],sft$fitIndices[,5],type="n",
+#   #      xlab="Soft Threshold (power)",ylab="Mean Connectivity",main=paste("Mean connectivity"))
+#   # text(sft$fitIndices[,1],sft$fitIndices[,5],labels=powers,col="red")
+# dev.off()
 #################################
-# sft.power = 12 ##WGCNA FAQ.
+# ## Bootstrap technique from JH
+# # == bootstrap dataset to find optimal soft-threshold power; faster than running whole dataset
+# powers = c(c(6:10), seq(from = 12, to=20, by=2))
+# boot = 10
+# sft_boot = list();
+# for(x in 1:boot){
+#   cat("\rBootstrap soft-threshold power estimation:", x)
+#   # subsample = datExpr[sample(nrow(datExpr), 0.1*nrow(datExpr)), sample(1000)] # 10% of samples and 1000 genes
+#   subsample = datExpr[,sample(1e3)]   # sample K genes
+#   sft_boot[[x]] = pickSoftThreshold(subsample,
+#                                     powerVector = powers,
+#                                     corFnc="bicor",
+#                                     networkType="signed")
+# }
+# 
+# fits = ldply(lapply(sft_boot, function(x) x$fitIndices))
+# table(unlist(lapply(sft_boot, function(x) x$powerEstimate)))
+# fits$fit = -sign(fits$slope) * fits$SFT.R.sq
+# 
+# avg_rsq = ddply(fits, .(Power), summarize , mean = mean(fit), se = sd(fit)/sqrt(length(fit)))
+# # sft.power = avg_rsq$Power[which(avg_rsq$mean == max(avg_rsq$mean))]
+# sft.power = avg_rsq$Power[which(avg_rsq$mean > .85)[1]]
+# 
+# # plot estimate
+# g = ggplot(avg_rsq, aes(x = factor(Power), y = mean)) +
+#   geom_point(col = 'red', pch = 19) +
+#   geom_path(aes(group=1), col = 'red') +
+#   # geom_errorbar(aes(ymin = mean - se, ymax = mean + se), col = 'red', width = 0.1) +
+#   theme_bw() +
+#   xlab("Soft-threshold power") +
+#   ylab(expression(paste("Scale-free topology ", italic(R)^2))) +
+#   ggtitle(paste0("Soft Power Estimates, used ", sft.power)) +
+#   geom_hline(yintercept = 0.85, col = 'black', lwd= 0.5, lty = 2) +
+#   theme(axis.text = element_text(size = 11, color="black"),
+#         panel.grid = element_line(linetype = 2),
+#         axis.title = element_text(size = 11, color="black"))
+# png(paste(Pfolder,"/softthreshold_bootstrap.png",sep=""),res=300,units="in",height=6,width=6)
+# print(g)
+# dev.off()
+#################################
+sft.power = 12 ##WGCNA FAQ.
 
 cat("\nConstructing adjacency and assigning modules.\n")
 adjacencyPre = adjacency((datExpr),
@@ -277,6 +343,12 @@ fwrite(data.table(module),
        quote = F, row.names = F, sep = "\t")
 
 module = fread(paste(Wfolder,"/wgcna_module-membership.txt", sep=""),data.table=F)
+
+
+
+# stop("TODO working on the modules number.\nModules: ",ncol(MEs))
+
+
 
 ## Generate plots for differential expresison among groups
 cat("Plotting associations.\n")
@@ -420,12 +492,21 @@ cat("\nPrinted to topHubs.txt.")
 ## Create linear model with eigengenes
 cat("\nCreating linear model.")
 # mod = model.matrix(~ FACTOR_dx,phenos)
-fit = lm(as.matrix(MEs) ~ phenos$FACTOR_dx)
+# fit = lm(as.matrix(MEs) ~ phenos$FACTOR_dx)
+fit = lm(as.matrix(MEs) ~ FACTOR_dx + FACTOR_age + FACTOR_sex + FACTOR_age^2 +
+                      FACTOR_studyID + B.cells + T.cells + NK.cells +
+                      Monocytes + Dendritic.cells +
+                      Mast.cells + Granulocytes,
+                    data = fitPhenos)
+
+stop("TODO make it look at the dx part")
+
 
 coefs = coef(summary(fit))
 res = residuals(fit)
 coefs = ldply(coefs)
-coefs = coefs[seq(2,nrow(coefs),2),]
+# coefs = coefs[seq(2,nrow(coefs),2),]
+coefs = coefs[seq(2,nrow(coefs),15),] ##pull out dx estimates
 colnames(coefs)[grepl("Pr..", colnames(coefs))] = "P"
 coefs$FDR = p.adjust(coefs$P, 'fdr')
 coefs$BONF = p.adjust(coefs$P, 'bonferroni')
@@ -450,7 +531,7 @@ dev.off()
 
 fwrite(coefs,file=paste(Wfolder,"/ME_LM.csv",sep=""))
 
-
+# stop("TODO this bit has to be redone to handle the other stuff")
 ## sva a couple SVs and account for them in the lm fit with eigengenes
 # mod = model.matrix(~ FACTOR_dx,phenos)
 mod = model.matrix(~ FACTOR_dx,phenos)
