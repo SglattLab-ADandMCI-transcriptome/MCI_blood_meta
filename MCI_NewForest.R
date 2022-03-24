@@ -3,8 +3,6 @@ setwd("~/PsychGENe/MCI_blood_meta/")
 ## New forest plots and other information from meta analysis
 ## GCH
 
-## TODO GSER for top genes
-
 require(data.table)
 require(biomaRt)
 require(plyr)
@@ -17,6 +15,7 @@ require(reactome.db)
 
 loo = fread("./meta_analysis/whole_blood_loosave.txt", data.table=F)
 metar = fread("./meta_analysis/whole_blood_MCI_meta_significant_arcsinh_and_pvals.csv", data.table=F)
+wts = fread("./meta_analysis/whole_blood_REML_weights.txt", data.table=F)
 
 
 topgenes = unique(metar$GeneSymbol[metar$FDR < .05])
@@ -93,6 +92,7 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
                     Ncase = meta$Ncase, 
                     Ncontrol = meta$Ncontrol,
                     N = meta$Nsample,
+                    Weight = 100,
                     col = "blue", 
                     Source = "Meta-analysis")
   
@@ -100,9 +100,13 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
   sub = mergestats[mergestats$GeneSymbol %in% topgenes[[i]], ]
   sub = sub[grepl("dx", sub$term), ]
   sub = sub[sub$studyID %in% keep_studies, ] # retain correct studies for forest plot
-  
+  sub = sub[,-1]
   
   if(nrow(sub) > 0){
+    wt = data.frame(studyID = wts$Study[which(wts$GeneSymbol == topgenes[[i]])],
+                    Weight = wts$Weight[which(wts$GeneSymbol == topgenes[[i]])])
+    
+    sub = merge(sub, wt)
     
     indiv = data.frame(arcsinh = sub$estimate, 
                        P = sub$p.value,
@@ -111,8 +115,13 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
                        Ncase = sub$N_cases, 
                        Ncontrol = sub$N_controls,
                        N = sub$N,
+                       Weight = sub$Weight,
                        col = "red", 
                        Source = "Studies");
+    
+    ## order by weight
+    ord = order(indiv$Weight,decreasing = F)
+    indiv = indiv[ord,]
     
     meta$N = sum(indiv$N)
     results = ldply(list(indiv,meta))
@@ -121,18 +130,19 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
   results$P_label = paste("P = ", format(scientific=T,digits=3,results$P), sep = "")
   results$CI_LOW = results$arcsinh - (1.96 * results$SE)
   results$CI_HIGH = results$arcsinh  + (1.96 * results$SE)
-  results$studyID = factor(results$studyID, levels = results$studyID)
-  results$percentlab = paste0(trunc(results$N / max(results$N) * 100),"%")
-  results$percentlab[grep("100",results$percentlab)] = paste0("n=",max(results$N))
+  results$percentlab = paste0(round(results$Weight,digits = 2),"%")
+  results$percentlab[grep("100",results$percentlab)] = "Weight"
+  results$ylab = paste0(results$studyID,"\nn=",results$N)
+  results$ylab = factor(results$ylab,levels = results$ylab,ordered=T)
   
   locus = metar$LOC[metar$GeneSymbol %in% topgenes[[i]]]
   
-  g = ggplot(results, aes(x = arcsinh, y = studyID)) + 
+  g = ggplot(results, aes(x = arcsinh, y = ylab)) + 
     geom_point(col = results$col, shape=18, size = 1.2*(.7+results$N/max(results$N))) + 
     theme_bw() +
     xlim(min(floor(results$CI_LOW)), max(ceiling(results$CI_HIGH))) +
-    xlab(expression(paste("arcsinh score change (95% CI)"))) +
-    ylab(results$studyID) +
+    xlab(expression(paste("IHS score change (95% CI)"))) +
+    ylab(NULL) +
     ggtitle(paste0(topgenes[[i]]," - Contribution")) +
     geom_vline(aes(xintercept = 0),linetype="dashed", col = "grey") +
     facet_grid(Source~., scales = "free_y", space = "free_y") + 
@@ -169,24 +179,35 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
                     Ncase = meta$Ncase, 
                     Ncontrol = meta$Ncontrol,
                     N = meta$Nsample,
+                    Weight = 100,
                     col = "blue", 
                     Source = "Meta-analysis")
   
   
   sub = loo_filter[loo_filter$GeneSymbol %in% topgenes[[i]], ]
   sub = sub[sub$studyID %in% keep_studies, ] # retain correct studies for forest plot
-  
+
   if(nrow(sub) > 0){
+    wt = data.frame(studyID = wts$Study[which(wts$GeneSymbol == topgenes[[i]])],
+                    Weight = wts$Weight[which(wts$GeneSymbol == topgenes[[i]])])
+    
+    sub = merge(sub, wt)
+
     for(q in 1:nrow(sub)){
       sub$N[q] = Ns$N[which(Ns$studyID == sub$studyID[q])]
     }
+    
     indiv = data.frame(arcsinh = sub$estimate, 
                        P = sub$pval,
                        SE = sub$se, 
                        studyID = sub$studyID,
                        N = sub$N,
+                       Weight = sub$Weight,
                        col = "red", 
                        Source = "Studies");
+    ## order by weight
+    ord = order(indiv$Weight,decreasing = F)
+    indiv = indiv[ord,]
     
     meta$N = sum(indiv$N)
     results = ldply(list(indiv,meta))
@@ -197,13 +218,14 @@ if(length(topgenes)>1) for( i in 1:length(topgenes)){
   results$P_label = paste("P = ", format(scientific=T,digits=3,results$P), sep = "")
   results$CI_LOW = results$arcsinh - (1.96 * results$SE)
   results$CI_HIGH = results$arcsinh  + (1.96 * results$SE)
-  results$studyID = factor(results$studyID, levels = results$studyID)
-  results$percentlab = paste0(trunc(results$N / max(results$N) * 100),"%")
-  results$percentlab[grep("100",results$percentlab)] = paste0("n=",max(results$N))
+  results$percentlab = paste0(round(results$Weight,digits = 2),"%")
+  results$percentlab[grep("100",results$percentlab)] = "Weight"
+  results$ylab = paste0(results$studyID,"\nn=",results$N)
+  results$ylab = factor(results$ylab,levels = results$ylab,ordered=T)
   
   locus = metar$LOC[metar$GeneSymbol %in% topgenes[[i]]]
   
-  g = ggplot(results, aes(x = arcsinh, y = (studyID))) + 
+  g = ggplot(results, aes(x = arcsinh, y = (ylab))) + 
     geom_point(col = results$col, shape=18, size = 1.2*(.7+results$N/max(results$N))) + 
     theme_bw() +
     xlim(min(floor(c(results$CI_LOW,-1))), max(ceiling(c(results$CI_HIGH,1)))) +

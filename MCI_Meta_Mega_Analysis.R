@@ -290,6 +290,8 @@ for(tissue in tissues){
          file = paste(metafolder, "/",tissue,"_",analysislabel,"_perStudyDGEsummary.csv",sep=""),
          quote = F, row.names= F,sep=",")
   
+  # mergestats = fread(paste(metafolder, "/",tissue,"_",analysislabel,"_perStudyDGEsummary.csv",sep=""), data.table=F)
+  
   
   graph_df = mergestats
   non_sv = graph_df[!grepl("SV",graph_df$term), ]
@@ -348,9 +350,10 @@ for(tissue in tissues){
   
   res_save = list()
   loo_save = list()
+  wt_save = list()
   for( i in 1:length(genes)){
     
-    cat("\rMeta-analysis:",i,"/",length(genes))
+    cat("\rMeta-analysis:",i,"/",length(genes),"          ",genes[i],"           ")
     sub = mergestats[mergestats$GeneSymbol %in% genes[[i]], ]
     sub = sub[grepl("dx", sub$term), ]
     
@@ -420,6 +423,11 @@ for(tissue in tissues){
       loo_save[[i]] = data.frame(studyID = sub_combn$studyID, loo_tmp, GeneSymbol = genes[[i]])
     }
     
+    wt = weights(res)
+    wt = data.frame(GeneSymbol = sub$GeneSymbol[[1]],
+                    Study = sub_combn$studyID,
+                    Weight = wt)
+    
     res = data.frame(GeneSymbol = sub$GeneSymbol[[1]],
                      Direction = direction, 
                      Nstudy = nrow(sub_combn),
@@ -442,6 +450,8 @@ for(tissue in tissues){
     
     res_save[[i]] = res
     names(res_save)[i] = genes[i]
+    wt_save[[i]] = wt
+    names(wt_save)[i] = genes[i]
   }
   
   foo = llply(res_save,class)
@@ -460,6 +470,10 @@ for(tissue in tissues){
   ## save the loo
   loo_df = ldply(loo_save)
   fwrite(loo_df,file = paste0(metafolder,"/",tissue,"_loosave.txt"))
+  
+  ## save weights
+  wt_df = ldply(wt_save)
+  fwrite(wt_df,file = paste0(metafolder,"/",tissue,"_REML_weights.txt"))
   
   # res_df = fread("./meta_analysis/whole_blood_MCI_meta.txt",data.table=F)
   # ab = res_df[res_df$GeneSymbol %in% gene_filter$GeneSymbol, ]
